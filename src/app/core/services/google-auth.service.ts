@@ -775,4 +775,58 @@ export class GoogleAuthService {
       }
     });
   }
+
+  // Renovar o token quando expirar (401)
+  refreshToken(): Observable<string> {
+    return new Observable(observer => {
+      if (!isPlatformBrowser(this.platformId)) {
+        observer.error('Renovação de token só pode ser realizada no navegador');
+        return;
+      }
+
+      try {
+        if (!(window as any).google) {
+          setTimeout(() => {
+            this.refreshToken().subscribe({
+              next: token => observer.next(token),
+              error: err => observer.error(err)
+            });
+          }, 500);
+          return;
+        }
+
+        const client = (window as any).google.accounts.oauth2.initTokenClient({
+          client_id: '657981591726-mc1spr0mmt6bjmgf011pasulclmbjg8o.apps.googleusercontent.com',
+          scope: 'email profile https://www.googleapis.com/auth/spreadsheets',
+          callback: (tokenResponse: any) => {
+            if (tokenResponse && tokenResponse.access_token) {
+              // Atualizar o token no usuário atual
+              const currentUser = this.currentUser;
+              if (currentUser) {
+                currentUser.accessToken = tokenResponse.access_token;
+                this.userSubject.next(currentUser);
+                this.storageService.set(this.USER_KEY, currentUser);
+                console.log('Token renovado com sucesso');
+                observer.next(tokenResponse.access_token);
+                observer.complete();
+              } else {
+                observer.error('Usuário não encontrado para atualizar token');
+              }
+            } else {
+              observer.error('Falha ao renovar o token');
+            }
+          },
+          error_callback: (error: any) => {
+            console.error('Erro ao renovar token:', error);
+            observer.error(error);
+          }
+        });
+
+        client.requestAccessToken();
+      } catch (error) {
+        console.error('Exceção ao renovar token:', error);
+        observer.error(error);
+      }
+    });
+  }
 } 

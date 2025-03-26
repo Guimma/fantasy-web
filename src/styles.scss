@@ -58,3 +58,29 @@ body {
   font: 400 14px/20px Roboto, "Helvetica Neue", sans-serif;
   letter-spacing: normal;
 }
+
+/* Estilos para diálogos de confirmação */
+.confirmation-dialog .mat-mdc-dialog-container {
+  padding: 0;
+}
+
+.confirmation-dialog .mat-mdc-dialog-surface {
+  border-radius: 8px;
+}
+
+/* Sobrescrever os estilos padrão do Angular Material para diálogos */
+.mat-mdc-dialog-actions {
+  justify-content: flex-end;
+  padding: 8px 24px 24px;
+  gap: 8px;
+}
+
+.mat-mdc-dialog-content {
+  padding: 20px 24px;
+  margin: 0;
+}
+
+.mat-mdc-dialog-title {
+  margin: 0;
+  padding: 24px 24px 0;
+}

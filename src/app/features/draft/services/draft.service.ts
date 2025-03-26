@@ -215,20 +215,10 @@ export class DraftService {
       return of(cachedTeams);
     }
 
-    // Se não temos em cache, buscar da planilha
-    const accessToken = this.authService.currentUser?.accessToken;
-    if (!accessToken) {
-      return throwError(() => new Error('Usuário não autenticado'));
-    }
-
-    // Buscar primeiro todos os times
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.TEAMS_RANGE}`;
-    const headers = {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    };
-
-    return this.http.get<any>(url, { headers }).pipe(
+    // Se não temos em cache, buscar da planilha usando o sistema de renovação de token
+    return this.makeAuthorizedRequest<any>('get', 
+      `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.TEAMS_RANGE}`
+    ).pipe(
       switchMap(response => {
         if (!response.values || response.values.length <= 1) {
           return of([]);
@@ -250,20 +240,16 @@ export class DraftService {
         });
 
         // Agora buscar os jogadores de cada time
-        return this.getTeamsPlayers(teams, accessToken);
+        return this.getTeamsPlayers(teams);
       })
     );
   }
 
-  private getTeamsPlayers(teams: DraftTeam[], accessToken: string): Observable<DraftTeam[]> {
+  private getTeamsPlayers(teams: DraftTeam[]): Observable<DraftTeam[]> {
     // Buscar todos os jogadores dos times
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.ELENCOS_TIMES_RANGE}`;
-    const headers = {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    };
-
-    return this.http.get<any>(url, { headers }).pipe(
+    return this.makeAuthorizedRequest<any>('get',
+      `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.ELENCOS_TIMES_RANGE}`
+    ).pipe(
       switchMap(response => {
         if (!response.values || response.values.length <= 1) {
           this.storageService.set(this.DRAFT_TEAMS_KEY, teams);
@@ -301,16 +287,37 @@ export class DraftService {
     );
   }
 
-  // Obter todos os atletas
+  // Obter todos os atletas com renovação automática do token
   getAllAthletes(): Observable<Athlete[]> {
     const accessToken = this.authService.currentUser?.accessToken;
     if (!accessToken) {
       return throwError(() => new Error('Usuário não autenticado'));
     }
 
+    return this.fetchAthletesWithToken(accessToken).pipe(
+      catchError(error => {
+        // Verificar se é um erro de autenticação (401)
+        if (error.status === 401) {
+          console.log('Token expirado, tentando renovar...');
+          // Tentar renovar o token e refazer a requisição
+          return this.authService.refreshToken().pipe(
+            switchMap(newToken => {
+              console.log('Token renovado, refazendo requisição...');
+              return this.fetchAthletesWithToken(newToken);
+            })
+          );
+        }
+        // Se não for 401, propagar o erro
+        return throwError(() => error);
+      })
+    );
+  }
+
+  // Método separado para obter atletas com um token específico
+  private fetchAthletesWithToken(token: string): Observable<Athlete[]> {
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.ATHLETES_RANGE}`;
     const headers = {
-      'Authorization': `Bearer ${accessToken}`,
+      'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     };
 
@@ -407,9 +414,67 @@ export class DraftService {
       }),
       catchError(error => {
         console.error('Erro ao carregar atletas:', error);
-        return throwError(() => new Error('Erro ao carregar atletas da planilha'));
+        return throwError(() => new Error(`Erro ao carregar atletas da planilha: ${error.message || error.statusText}`));
       })
     );
+  }
+
+  // Helper para fazer requisições HTTP com renovação automática de token
+  private makeAuthorizedRequest<T>(
+    method: 'get' | 'post' | 'put', 
+    url: string, 
+    body?: any, 
+    params?: any
+  ): Observable<T> {
+    const accessToken = this.authService.currentUser?.accessToken;
+    if (!accessToken) {
+      return throwError(() => new Error('Usuário não autenticado'));
+    }
+
+    return this.executeRequest<T>(method, url, accessToken, body, params).pipe(
+      catchError(error => {
+        // Verificar se é um erro de autenticação (401)
+        if (error.status === 401) {
+          console.log('Token expirado, tentando renovar...');
+          // Tentar renovar o token e refazer a requisição
+          return this.authService.refreshToken().pipe(
+            switchMap(newToken => {
+              console.log('Token renovado, refazendo requisição...');
+              return this.executeRequest<T>(method, url, newToken, body, params);
+            })
+          );
+        }
+        // Se não for 401, propagar o erro
+        return throwError(() => error);
+      })
+    );
+  }
+
+  // Executar a requisição HTTP com um token específico
+  private executeRequest<T>(
+    method: 'get' | 'post' | 'put', 
+    url: string, 
+    token: string, 
+    body?: any, 
+    params?: any
+  ): Observable<T> {
+    const headers = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    };
+    
+    const options = { headers, params };
+    
+    switch (method) {
+      case 'get':
+        return this.http.get<T>(url, options);
+      case 'post':
+        return this.http.post<T>(url, body, options);
+      case 'put':
+        return this.http.put<T>(url, body, options);
+      default:
+        return throwError(() => new Error(`Método HTTP não suportado: ${method}`));
+    }
   }
 
   // Obter ordem do Draft
@@ -420,20 +485,10 @@ export class DraftService {
       return of(cachedOrder);
     }
 
-    // Se não temos em cache, buscar da planilha
-    const accessToken = this.authService.currentUser?.accessToken;
-    if (!accessToken) {
-      return throwError(() => new Error('Usuário não autenticado'));
-    }
-
-    // Primeiro buscar a configuração do draft para saber o round atual
-    const configUrl = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.CONFIG_DRAFT_RANGE}`;
-    const headers = {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    };
-
-    return this.http.get<any>(configUrl, { headers }).pipe(
+    // Se não temos em cache, buscar da planilha usando o sistema de renovação de token
+    return this.makeAuthorizedRequest<any>('get',
+      `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.CONFIG_DRAFT_RANGE}`
+    ).pipe(
       switchMap(configResponse => {
         let currentRound = 1;
         let currentIndex = 0;
@@ -446,9 +501,9 @@ export class DraftService {
         }
 
         // Agora buscar a ordem do draft
-        const orderUrl = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.ORDEM_DRAFT_RANGE}`;
-        
-        return this.http.get<any>(orderUrl, { headers }).pipe(
+        return this.makeAuthorizedRequest<any>('get',
+          `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.ORDEM_DRAFT_RANGE}`
+        ).pipe(
           map(orderResponse => {
             if (!orderResponse.values || orderResponse.values.length <= 1) {
               return { order: [], currentRound, currentIndex };

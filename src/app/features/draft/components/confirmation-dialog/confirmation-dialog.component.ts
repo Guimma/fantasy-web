@@ -31,10 +31,24 @@ export interface ConfirmationDialogData {
   styles: `
     mat-dialog-content {
       min-width: 300px;
+      padding: 20px 24px;
+      margin: 0;
     }
     
     mat-dialog-actions {
-      padding: 16px 0 0;
+      padding: 12px 24px 24px;
+      margin-bottom: 0;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    h2[mat-dialog-title] {
+      margin: 0;
+      padding: 24px 24px 0;
+    }
+
+    button {
+      margin-left: 8px;
     }
   `
 })

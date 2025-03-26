@@ -78,6 +78,12 @@ import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './mode
             {{ draftStatusText }}
           </div>
         </div>
+        <!-- Timer centralized in header if draft is in progress -->
+        <div *ngIf="draftStatus === 'in_progress'" class="timer">
+          <div [ngClass]="{'timer-warning': remainingSeconds < 20, 'timer-expired': remainingSeconds <= 0}">
+            {{ remainingSeconds <= 0 ? 'Tempo esgotado!' : 'Tempo restante: ' + formatTime(remainingSeconds) }}
+          </div>
+        </div>
         <div class="draft-controls">
           <button 
             mat-raised-button 
@@ -97,13 +103,6 @@ import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './mode
           </button>
           <button 
             mat-raised-button 
-            color="primary"
-            [disabled]="isLoading" 
-            (click)="refreshData()">
-            <mat-icon>refresh</mat-icon> Atualizar
-          </button>
-          <button 
-            mat-raised-button 
             color="warn"
             *ngIf="draftStatus !== 'not_started'"
             [disabled]="isLoading" 
@@ -113,13 +112,6 @@ import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './mode
           </button>
         </div>
       </header>
-
-      <!-- Timer if draft is in progress -->
-      <div *ngIf="draftStatus === 'in_progress'" class="timer-section">
-        <div class="timer" [ngClass]="{'timer-warning': remainingSeconds < 20, 'timer-expired': remainingSeconds <= 0}">
-          {{ remainingSeconds <= 0 ? 'Tempo esgotado!' : 'Tempo restante: ' + formatTime(remainingSeconds) }}
-        </div>
-      </div>
 
       <!-- Main Content Area -->
       <div class="draft-content">
@@ -219,6 +211,7 @@ import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './mode
       display: flex;
       align-items: center;
       gap: 16px;
+      flex: 1;
       
       h1 {
         margin: 0;
@@ -250,23 +243,13 @@ import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './mode
       color: white;
     }
 
-    .draft-controls {
-      display: flex;
-      gap: 8px;
-    }
-
-    .reset-button {
-      background-color: #d32f2f;
-      margin-left: 16px;
-    }
-
-    .timer-section {
+    .timer {
       display: flex;
       justify-content: center;
-      margin-bottom: 16px;
+      flex: 1;
     }
-
-    .timer {
+    
+    .timer div {
       background-color: #3f51b5;
       color: white;
       padding: 8px 16px;
@@ -279,12 +262,12 @@ import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './mode
     }
 
     .timer-warning {
-      background-color: #f44336;
+      background-color: #ff9800 !important;
       animation: pulse 1s infinite;
     }
 
     .timer-expired {
-      background-color: #d32f2f;
+      background-color: #f44336 !important;
       animation: urgent-pulse 0.5s infinite;
       font-weight: 700;
     }
@@ -299,6 +282,18 @@ import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './mode
       0% { opacity: 1; transform: scale(1); }
       50% { opacity: 0.9; transform: scale(1.05); }
       100% { opacity: 1; transform: scale(1); }
+    }
+
+    .draft-controls {
+      display: flex;
+      gap: 8px;
+      flex: 1;
+      justify-content: flex-end;
+    }
+
+    .reset-button {
+      background-color: #d32f2f;
+      margin-left: 16px;
     }
 
     .draft-content {
@@ -756,7 +751,9 @@ export class DraftComponent implements OnInit, OnDestroy {
 
   confirmResetDraft(): void {
     const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
-      width: '450px',
+      width: '500px',
+      disableClose: true,
+      panelClass: 'confirmation-dialog',
       data: {
         title: 'Reiniciar Draft',
         message: 'ATENÇÃO: Esta ação irá reiniciar o Draft completamente, apagando todas as escolhas de jogadores e ordem de escolha. Tem certeza que deseja continuar?',

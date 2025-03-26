@@ -137,12 +137,12 @@ import { DraftStatus } from '../../models/draft.model';
                   </div>
                   <div class="player-actions">
                     <button 
-                      mat-flat-button 
+                      mat-mini-fab 
                       color="primary"
                       [disabled]="!canSelectPlayer()"
                       (click)="selectPlayer(player)"
                       [matTooltip]="getSelectTooltip()">
-                      <mat-icon>add</mat-icon> Selecionar
+                      <mat-icon>add</mat-icon>
                     </button>
                   </div>
                 </div>
@@ -384,6 +384,24 @@ import { DraftStatus } from '../../models/draft.model';
         flex-direction: column;
         gap: 0;
       }
+    }
+
+    .player-actions {
+      display: flex;
+      align-items: center;
+    }
+
+    .player-actions button {
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      width: 36px;
+      height: 36px;
+      line-height: 36px;
+    }
+
+    .player-actions mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
     }
   `
 })
