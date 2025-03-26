@@ -5,12 +5,19 @@ on:
     branches:
       - main
 
+# Define permissões para o token GITHUB_TOKEN
+permissions:
+  contents: write
+  pages: write
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          persist-credentials: true # Persiste as credenciais para poder fazer push
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
@@ -29,4 +36,5 @@ jobs:
         with:
           folder: dist/fantasy-web/browser # Pasta de saída do build do Angular
           branch: gh-pages # Uma branch separada para o código de produção
-          clean: true # Remove arquivos antigos 
+          clean: true # Remove arquivos antigos
+          token: ${{ github.token }} # Usa o token do GitHub fornecido ao workflow 
