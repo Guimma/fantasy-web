@@ -1,8 +1,10 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
+import { MatButtonModule } from '@angular/material/button';
 import { Router, RouterModule } from '@angular/router';
 import { NgForOf, NgIf } from '@angular/common';
 import { GoogleAuthService } from '../core/services/google-auth.service';
+import { AuthService } from '../core/services/auth.service';
 
 @Component({
   selector: 'app-home',
@@ -11,11 +13,17 @@ import { GoogleAuthService } from '../core/services/google-auth.service';
     MatCardModule, 
     RouterModule,
     NgIf,
-    NgForOf
+    NgForOf,
+    MatButtonModule
   ],
   template: `
     <div class="home-container">
-      <h1>Fantasy Futebol</h1>
+      <div class="header">
+        <h1>Fantasy Futebol</h1>
+        <button mat-raised-button color="warn" (click)="logout()">
+          Sair
+        </button>
+      </div>
 
       <div class="team-info" *ngIf="userTeam">
         <h2>Seu Time: {{ userTeam.name }}</h2>
@@ -99,75 +107,57 @@ import { GoogleAuthService } from '../core/services/google-auth.service';
       padding: 20px;
     }
 
-    h1 {
-      text-align: center;
-      margin-bottom: 30px;
-      color: #3f51b5;
-    }
-
-    .team-info {
-      text-align: center;
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       margin-bottom: 20px;
     }
 
-    .team-info h2 {
-      color: #3f51b5;
-      margin: 0;
+    .team-info {
+      margin-bottom: 20px;
     }
-
+    
     .tabs {
-      margin-bottom: 30px;
-      border-bottom: 1px solid #ddd;
+      margin-bottom: 20px;
     }
-
+    
     .tab-container {
       display: flex;
-      justify-content: center;
+      gap: 10px;
     }
-
+    
     .tab {
-      padding: 12px 24px;
-      color: #555;
+      padding: 10px 20px;
       text-decoration: none;
-      font-size: 16px;
-      transition: all 0.3s ease;
+      color: #666;
+      border-radius: 4px;
+      transition: background-color 0.3s;
     }
-
+    
     .tab:hover {
       background-color: #f5f5f5;
-      color: #3f51b5;
     }
-
+    
     .active-tab {
-      color: #3f51b5;
-      border-bottom: 2px solid #3f51b5;
-      font-weight: 500;
+      background-color: #e0e0e0;
+      color: #333;
     }
-
+    
     .card-container {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
       gap: 20px;
     }
-
+    
     .dashboard-card {
       height: 100%;
-    }
-
-    mat-card-content {
-      padding-top: 10px;
-    }
-
-    @media (max-width: 768px) {
-      .tab {
-        padding: 10px 15px;
-        font-size: 14px;
-      }
     }
   `
 })
 export class HomeComponent implements OnInit {
-  protected authService = inject(GoogleAuthService);
+  protected googleAuthService = inject(GoogleAuthService);
+  protected authService = inject(AuthService);
   protected router = inject(Router);
   
   currentUser: any = null;
@@ -175,8 +165,13 @@ export class HomeComponent implements OnInit {
   isAdmin = false;
 
   ngOnInit(): void {
-    this.currentUser = this.authService.currentUser;
-    this.isAdmin = this.authService.isAdmin();
-    this.userTeam = this.authService.getUserTeam();
+    this.currentUser = this.googleAuthService.currentUser;
+    this.isAdmin = this.googleAuthService.isAdmin();
+    this.userTeam = this.googleAuthService.getUserTeam();
+  }
+
+  logout(): void {
+    this.authService.logout();
+    this.router.navigate(['/login']);
   }
 } 
