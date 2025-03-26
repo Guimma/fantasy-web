@@ -54,6 +54,37 @@ ng e2e
 
 Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
 
+## Google Sheets Integration (MCP)
+
+This project includes a Model-Code-Prompt (MCP) integration with Google Sheets to manage fantasy league data. The MCP is configured in the `.cursor` directory.
+
+### Setup
+
+1. Install the googleapis package:
+```bash
+npm install googleapis
+```
+
+2. Ensure you have a valid `credentials.json` file in the project root with appropriate Google Sheets API access.
+   - **IMPORTANT**: The `credentials.json` file is ignored by git for security reasons. You must create this file locally.
+   - Do not commit this file to version control.
+
+3. The MCP is configured to access the Google Spreadsheet with ID: `1n3FjgSy19YCHZhsRA3HR0d92o3yAHhLBjYwEHSYJwjI`
+
+### Scripts
+
+- **analyze_sheet.js**: Analyzes and displays the structure of all sheets in the spreadsheet
+- **sheets_mcp_server.js**: MCP server implementation for Google Sheets integration
+
+### Running Analysis
+
+To analyze the spreadsheet structure:
+
+```bash
+cd .cursor
+node analyze_sheet.js
+```
+
 ## Additional Resources
 
 For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
