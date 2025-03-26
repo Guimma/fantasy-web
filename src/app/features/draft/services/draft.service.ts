@@ -654,7 +654,7 @@ export class DraftService {
 
     // Criar ordem no formato snake (ida e volta)
     const draftOrderEntries = [];
-    const totalRounds = 14; // Total de rodadas para ter, no mínimo, o número de jogadores por time
+    const totalRounds = 18; // Total de rodadas para ter, no mínimo, o número de jogadores por time
 
     for (let round = 1; round <= totalRounds; round++) {
       const isEvenRound = round % 2 === 0;
