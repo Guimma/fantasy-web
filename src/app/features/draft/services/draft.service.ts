@@ -808,6 +808,97 @@ export class DraftService {
     );
   }
 
+  // Reiniciar o Draft (resetar para o estado inicial)
+  resetDraft(): Observable<boolean> {
+    const accessToken = this.authService.currentUser?.accessToken;
+    if (!accessToken) {
+      return throwError(() => new Error('Usuário não autenticado'));
+    }
+
+    // 1. Limpar a tabela de escolhas do draft
+    return this.clearSheetData(this.ESCOLHAS_DRAFT_RANGE, accessToken).pipe(
+      // 2. Limpar os elencos dos times
+      switchMap(() => this.clearSheetData(this.ELENCOS_TIMES_RANGE, accessToken)),
+      // 3. Definir o status do draft como "Não iniciado"
+      switchMap(() => {
+        const ligaId = '1'; // Default liga id
+        const now = new Date().toISOString();
+        
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.CONFIG_DRAFT_RANGE}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+        const headers = {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        };
+
+        const body = {
+          values: [
+            [
+              ligaId,
+              now,
+              '60',           // duracao_escolha (padrão: 60 segundos)
+              'Agendado',     // status (não iniciado)
+              '0'             // ordem_atual
+            ]
+          ]
+        };
+
+        return this.http.post<any>(url, body, { headers });
+      }),
+      // 4. Limpar a ordem do draft
+      switchMap(() => this.clearSheetData(this.ORDEM_DRAFT_RANGE, accessToken)),
+      // 5. Limpar os caches
+      map(() => {
+        this.storageService.set(this.DRAFT_STATUS_KEY, 'not_started' as DraftStatus);
+        this.storageService.remove(this.DRAFT_TEAMS_KEY);
+        this.storageService.remove(this.DRAFT_ORDER_KEY);
+        this.storageService.remove(this.DRAFT_CONFIG_KEY);
+        return true;
+      })
+    );
+  }
+
+  // Método auxiliar para limpar dados de uma planilha (mantendo cabeçalho)
+  private clearSheetData(range: string, accessToken: string): Observable<any> {
+    // Extrair o nome da planilha do intervalo
+    const sheetName = range.split('!')[0];
+    
+    // Primeiro obtemos os dados para ver o cabeçalho
+    const getUrl = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${range}`;
+    const headers = {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    };
+
+    return this.http.get<any>(getUrl, { headers }).pipe(
+      switchMap(response => {
+        if (!response.values || response.values.length <= 1) {
+          // Não há dados ou apenas o cabeçalho, então nada para limpar
+          return of(true);
+        }
+
+        // Extrair o cabeçalho (primeira linha)
+        const header = response.values[0];
+        
+        // Limpar todas as células exceto o cabeçalho
+        // Nós usamos o mesmo intervalo, mas na implementação da Google Sheets API,
+        // ela só atualizará as linhas que fornecemos, mantendo as demais
+        const clearUrl = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${range}:clear`;
+        
+        return this.http.post<any>(clearUrl, {}, { headers }).pipe(
+          // Reescrever o cabeçalho - CORREÇÃO DA URL
+          switchMap(() => {
+            const headerUrl = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${sheetName}!A1:Z1?valueInputOption=USER_ENTERED`;
+            const headerBody = {
+              values: [header]
+            };
+            
+            return this.http.put<any>(headerUrl, headerBody, { headers });
+          })
+        );
+      })
+    );
+  }
+
   // Auxiliar para gerar ID único
   private generateUniqueId(): string {
     return Date.now().toString(36) + Math.random().toString(36).substring(2);

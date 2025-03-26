@@ -102,6 +102,15 @@ import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './mode
             (click)="refreshData()">
             <mat-icon>refresh</mat-icon> Atualizar
           </button>
+          <button 
+            mat-raised-button 
+            color="warn"
+            *ngIf="draftStatus !== 'not_started'"
+            [disabled]="isLoading" 
+            (click)="confirmResetDraft()"
+            class="reset-button">
+            <mat-icon>restart_alt</mat-icon> Reiniciar Draft
+          </button>
         </div>
       </header>
 
@@ -244,6 +253,11 @@ import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './mode
     .draft-controls {
       display: flex;
       gap: 8px;
+    }
+
+    .reset-button {
+      background-color: #d32f2f;
+      margin-left: 16px;
     }
 
     .timer-section {
@@ -738,6 +752,49 @@ export class DraftComponent implements OnInit, OnDestroy {
 
   get draftStatusClass(): string {
     return `draft-status-${this.draftStatus}`;
+  }
+
+  confirmResetDraft(): void {
+    const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
+      width: '450px',
+      data: {
+        title: 'Reiniciar Draft',
+        message: 'ATENÇÃO: Esta ação irá reiniciar o Draft completamente, apagando todas as escolhas de jogadores e ordem de escolha. Tem certeza que deseja continuar?',
+        confirmButton: 'Sim, Reiniciar Draft',
+        cancelButton: 'Cancelar'
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.resetDraft();
+      }
+    });
+  }
+
+  resetDraft(): void {
+    this.isLoading = true;
+    this.clearTimerInterval();
+    
+    this.draftService.resetDraft().pipe(
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: () => {
+        this.snackBar.open('Draft reiniciado com sucesso', 'Fechar', { duration: 3000 });
+        this.draftStatus = 'not_started';
+        this.currentTeam = null;
+        this.currentRound = 0;
+        this.currentOrderIndex = -1;
+        this.draftOrder = [];
+        
+        // Recarregar os times com seus elencos vazios
+        this.loadTeams();
+      },
+      error: (error) => {
+        this.handleError('Erro ao reiniciar o draft', error);
+        this.isLoading = false;
+      }
+    });
   }
 
   private handleError(message: string, error: any): void {
