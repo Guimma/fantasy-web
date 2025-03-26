@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  googleClientId: 'GOOGLE_CLIENT_ID' // Será substituído durante o build
+  googleClientId: '657981591726-mc1spr0mmt6bjmgf011pasulclmbjg8o.apps.googleusercontent.com'
 }; 
