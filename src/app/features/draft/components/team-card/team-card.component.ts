@@ -105,6 +105,9 @@ import { DraftTeam, Athlete } from '../../models/draft.model';
       display: flex;
       flex-direction: column;
       transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      border: 1px solid rgba(0,0,0,0.08);
+      background-color: white;
     }
     
     .team-card.current-team {
@@ -115,6 +118,13 @@ import { DraftTeam, Athlete } from '../../models/draft.model';
     
     mat-card-header {
       position: relative;
+      background-color: rgba(0,0,0,0.02);
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+      padding: 16px 16px 12px;
+    }
+    
+    mat-card-title {
+      margin-bottom: 4px !important;
     }
     
     .card-badge {
@@ -169,10 +179,12 @@ import { DraftTeam, Athlete } from '../../models/draft.model';
     .player-item {
       display: flex;
       justify-content: space-between;
-      padding: 4px 8px;
-      background: #f9f9f9;
+      padding: 6px 10px;
+      background: white;
       border-radius: 4px;
       font-size: 13px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      border: 1px solid rgba(0,0,0,0.05);
     }
     
     .player-name {

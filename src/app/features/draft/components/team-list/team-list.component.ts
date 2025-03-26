@@ -45,7 +45,7 @@ import { DraftTeam, DraftOrder, DraftStatus } from '../../models/draft.model';
               *ngFor="let team of teams; let i = index" 
               [expanded]="isExpanded(team)"
               class="team-panel"
-              [ngClass]="{'current-team': team.id === currentTeamId, 'next-team': isNextTeam(team.id)}">
+              [ngClass]="getTeamStatusClass(team.id)">
               
               <mat-expansion-panel-header collapsedHeight="60px" expandedHeight="60px">
                 <div class="team-header">
@@ -112,7 +112,7 @@ import { DraftTeam, DraftOrder, DraftStatus } from '../../models/draft.model';
                   
                   <div *ngIf="team.players.length > 0" class="players-list">
                     <div *ngFor="let player of team.players" class="player-item">
-                      <div class="player-position" [attr.data-position]="player.posicao || 'SEM'">
+                      <div class="player-position" [attr.data-position]="getPositionCode(player.posicao)">
                         {{ (player.posicaoAbreviacao || player.posicao || 'SEM').toUpperCase() }}
                       </div>
                       <div class="player-info">
@@ -174,20 +174,79 @@ import { DraftTeam, DraftOrder, DraftStatus } from '../../models/draft.model';
     .teams-list {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+    }
+
+    /* Remover borda padrão e background do Angular Material para aplicarmos nossos estilos */
+    ::ng-deep .team-panel .mat-expansion-panel {
+      background: transparent !important;
+      box-shadow: none !important;
     }
 
     .team-panel {
-      margin-bottom: 8px;
-      border-left: 4px solid transparent;
+      margin-bottom: 16px !important; /* Espaçamento reduzido pela metade */
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      background-color: white;
+      border-radius: 8px;
+      overflow: hidden;
+      transition: box-shadow 0.3s, transform 0.2s;
+      position: relative;
+    }
+
+    /* Último time não precisa de margin-bottom */
+    .team-panel:last-child {
+      margin-bottom: 16px !important;
+    }
+
+    .team-panel::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background-color: transparent;
+      transition: background-color 0.3s;
+    }
+    
+    .team-panel:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.16);
+      transform: translateY(-2px);
+    }
+
+    .current-team::before {
+      background-color: #3f51b5;
     }
 
     .current-team {
-      border-left-color: #3f51b5;
+      background-color: #f5f7ff;
+    }
+
+    .next-team::before {
+      background-color: #ff4081;
     }
 
     .next-team {
-      border-left-color: #ff4081;
+      background-color: #fff5f8;
+    }
+
+    ::ng-deep .team-panel .mat-expansion-panel-header {
+      background-color: rgba(0,0,0,0.02);
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+      padding: 0 16px 0 16px;
+      height: 60px !important;
+    }
+
+    ::ng-deep .current-team .mat-expansion-panel-header {
+      background-color: rgba(63, 81, 181, 0.05);
+    }
+
+    ::ng-deep .next-team .mat-expansion-panel-header {
+      background-color: rgba(255, 64, 129, 0.05);
+    }
+
+    /* Consertar posição do indicador de expansão */
+    ::ng-deep .team-panel .mat-expansion-indicator {
+      margin-left: 8px;
     }
 
     .team-header {
@@ -219,6 +278,7 @@ import { DraftTeam, DraftOrder, DraftStatus } from '../../models/draft.model';
       display: flex;
       align-items: center;
       gap: 8px;
+      margin-right: 28px; /* Espaço para o indicador de expansão */
     }
 
     .player-count {
@@ -231,10 +291,22 @@ import { DraftTeam, DraftOrder, DraftStatus } from '../../models/draft.model';
       justify-content: center;
       font-size: 14px;
       font-weight: 500;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .current-team .player-count {
+      background-color: #3f51b5;
+      color: white;
+    }
+
+    .next-team .player-count {
+      background-color: #ff4081;
+      color: white;
     }
 
     .team-content {
-      padding: 16px 0;
+      padding: 16px 16px;
+      background-color: white;
     }
 
     .team-positions {
@@ -259,6 +331,9 @@ import { DraftTeam, DraftOrder, DraftStatus } from '../../models/draft.model';
       align-items: center;
       gap: 8px;
       font-size: 14px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      background-color: rgba(0,0,0,0.03);
     }
 
     .position-label {
@@ -290,7 +365,15 @@ import { DraftTeam, DraftOrder, DraftStatus } from '../../models/draft.model';
       gap: 8px;
       padding: 8px;
       border-radius: 4px;
-      background-color: #f5f5f5;
+      background-color: white;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      border: 1px solid rgba(0,0,0,0.05);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .player-item:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 5px rgba(0,0,0,0.15);
     }
 
     .player-position {
@@ -368,6 +451,27 @@ import { DraftTeam, DraftOrder, DraftStatus } from '../../models/draft.model';
     ::ng-deep .team-panel .mat-expansion-panel-body {
       padding: 0 16px 16px;
     }
+    
+    ::ng-deep .mat-expansion-panel:not(.mat-expanded) .mat-expansion-panel-header:hover:not([aria-disabled=true]) {
+      background-color: rgba(0,0,0,0.04);
+    }
+    
+    ::ng-deep .current-team:not(.mat-expanded) .mat-expansion-panel-header:hover:not([aria-disabled=true]) {
+      background-color: rgba(63, 81, 181, 0.08);
+    }
+    
+    ::ng-deep .next-team:not(.mat-expanded) .mat-expansion-panel-header:hover:not([aria-disabled=true]) {
+      background-color: rgba(255, 64, 129, 0.08);
+    }
+
+    /* Style direto no mat-expansion-panel para garantir aplicação */
+    ::ng-deep .teams-list .mat-expansion-panel {
+      margin-bottom: 16px !important;
+    }
+
+    ::ng-deep .teams-list .mat-expansion-panel:last-child {
+      margin-bottom: 8px !important;
+    }
   `
 })
 export class TeamListComponent {
@@ -399,6 +503,21 @@ export class TeamListComponent {
     return false;
   }
 
+  // Retorna a classe CSS correta para o time com prioridade para o time atual
+  getTeamStatusClass(teamId: string): { [key: string]: boolean } {
+    const isCurrent = teamId === this.currentTeamId;
+    const isNext = this.isNextTeam(teamId);
+    
+    // Se for tanto o time atual quanto o próximo, prioriza o estilo de time atual
+    if (isCurrent) {
+      return { 'current-team': true };
+    } else if (isNext) {
+      return { 'next-team': true };
+    }
+    
+    return {};
+  }
+
   // Count players by position
   countPlayersByPosition(team: DraftTeam, position: string): number {
     // Mapeamento de nomes de posição para as chaves que usamos no componente
@@ -418,5 +537,29 @@ export class TeamListComponent {
     
     // Contar jogadores cuja posição inclui o nome completo da posição
     return team.players.filter(player => player.posicao?.includes(fullPosition)).length;
+  }
+
+  // Método para obter o código da posição a partir do nome completo
+  getPositionCode(position: string): string {
+    if (!position) return 'SEM';
+    
+    const positionMap: Record<string, string> = {
+      'Goleiro': 'GOL',
+      'Lateral': 'LAT',
+      'Zagueiro': 'ZAG',
+      'Meia': 'MEI',
+      'Atacante': 'ATA',
+      'Técnico': 'TEC',
+      'Tecnico': 'TEC',
+      // Já retorna a posição se ela já for uma abreviação
+      'GOL': 'GOL',
+      'LAT': 'LAT',
+      'ZAG': 'ZAG',
+      'MEI': 'MEI',
+      'ATA': 'ATA',
+      'TEC': 'TEC'
+    };
+    
+    return positionMap[position] || 'SEM';
   }
 } 

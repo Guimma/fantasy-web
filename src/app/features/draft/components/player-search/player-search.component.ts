@@ -277,6 +277,15 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
 
     mat-card {
       padding: 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12) !important;
+      border: 1px solid rgba(0,0,0,0.08);
+      transition: transform 0.2s, box-shadow 0.2s;
+      background-color: white;
+    }
+
+    mat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.16) !important;
     }
 
     mat-card-content {

@@ -266,21 +266,27 @@ import { DraftTeam, DraftConfig } from '../../models/draft.model';
     }
 
     .player-card {
-      border: 1px solid #e0e0e0;
+      margin-bottom: 8px;
       border-radius: 4px;
-      width: calc(50% - 4px);
+      background-color: white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      border: 1px solid rgba(0,0,0,0.06);
       overflow: hidden;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .player-card:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 3px 6px rgba(0,0,0,0.14);
     }
 
     .player-card-content {
-      padding: 8px 12px;
       display: flex;
-      align-items: center;
-      gap: 8px;
+      padding: 8px;
     }
 
     .player-position {
-      width: 30px;
+      min-width: 30px;
       height: 30px;
       border-radius: 50%;
       display: flex;
@@ -290,6 +296,7 @@ import { DraftTeam, DraftConfig } from '../../models/draft.model';
       font-weight: bold;
       color: white;
       background-color: #aaa;
+      margin-right: 8px;
     }
 
     .player-position[data-position="GOL"] {

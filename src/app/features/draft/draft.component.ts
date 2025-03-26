@@ -301,16 +301,19 @@ import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './mode
       flex: 1;
       gap: 16px;
       overflow: hidden;
+      padding: 0 16px 16px;
+      background-color: #f0f2f5;
     }
 
     .column {
       flex: 1;
       background: white;
       border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
       overflow: auto;
       display: flex;
       flex-direction: column;
+      border: 1px solid rgba(0,0,0,0.06);
     }
 
     .current-team-column {
