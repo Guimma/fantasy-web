@@ -1,0 +1,57 @@
+.notification-success {
+  background-color: #4caf50;
+  color: white;
+}
+
+.notification-error {
+  background-color: #f44336;
+  color: white;
+}
+
+.notification-info {
+  background-color: #2196f3;
+  color: white;
+}
+
+.notification-warning {
+  background-color: #ff9800;
+  color: white;
+}
+
+.mat-snack-bar-container {
+  &.notification-success {
+    .mat-snack-bar-label {
+      color: white;
+    }
+    .mat-simple-snackbar-action {
+      color: white;
+    }
+  }
+
+  &.notification-error {
+    .mat-snack-bar-label {
+      color: white;
+    }
+    .mat-simple-snackbar-action {
+      color: white;
+    }
+  }
+
+  &.notification-info {
+    .mat-snack-bar-label {
+      color: white;
+    }
+    .mat-simple-snackbar-action {
+      color: white;
+    }
+  }
+
+  &.notification-warning {
+    .mat-snack-bar-label {
+      color: white;
+    }
+    .mat-simple-snackbar-action {
+      color: white;
+    }
+  }
+} 
