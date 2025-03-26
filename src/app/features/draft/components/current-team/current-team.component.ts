@@ -9,6 +9,7 @@ import { MatBadgeModule } from '@angular/material/badge';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { DraftTeam, DraftConfig } from '../../models/draft.model';
+import { TeamLogoService } from '../../../../core/services/team-logo.service';
 
 @Component({
   selector: 'app-current-team',
@@ -104,12 +105,17 @@ import { DraftTeam, DraftConfig } from '../../models/draft.model';
               <div class="player-cards">
                 <div *ngFor="let player of getPlayersByPosition(position)" class="player-card">
                   <div class="player-card-content">
-                    <div class="player-position" [attr.data-position]="player.posicao || 'SEM'">
-                      {{ (player.posicaoAbreviacao || player.posicao || 'SEM').toUpperCase() }}
+                    <div class="team-logo">
+                      <img [src]="getTeamLogo(player.clube)" [alt]="player.clube || 'Time'" class="team-logo-img">
                     </div>
                     <div class="player-info">
                       <div class="player-name">{{ player.apelido || player.nome || 'Sem nome' }}</div>
-                      <div class="player-club">{{ player.clubeAbreviacao || player.clube || 'Sem clube' }}</div>
+                      <div class="player-meta">
+                        <span class="player-position" [attr.data-position]="getPositionCode(player.posicao)">
+                          {{ (player.posicaoAbreviacao || player.posicao || 'SEM').toUpperCase() }}
+                        </span>
+                        <span class="player-price">R$ {{ (player.preco || 0).toFixed(2) }}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -283,20 +289,38 @@ import { DraftTeam, DraftConfig } from '../../models/draft.model';
     .player-card-content {
       display: flex;
       padding: 8px;
+      align-items: center;
     }
 
-    .player-position {
-      min-width: 30px;
-      height: 30px;
-      border-radius: 50%;
+    .team-logo {
+      width: 36px;
+      height: 36px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 12px;
+      overflow: hidden;
+      margin-right: 8px;
+    }
+
+    .team-logo-img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .player-position {
+      display: inline-block;
+      padding: 3px 6px;
+      border-radius: 4px;
+      font-size: 11px;
       font-weight: bold;
+      letter-spacing: 0.5px;
       color: white;
       background-color: #aaa;
-      margin-right: 8px;
+      text-transform: uppercase;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+      margin-right: 4px;
+      text-align: center;
     }
 
     .player-position[data-position="GOL"] {
@@ -304,13 +328,13 @@ import { DraftTeam, DraftConfig } from '../../models/draft.model';
       color: #000;
     }
 
-    .player-position[data-position="ZAG"] {
-      background-color: #2196f3;
+    .player-position[data-position="LAT"] {
+      background-color: #4caf50;
       color: white;
     }
 
-    .player-position[data-position="LAT"] {
-      background-color: #4caf50;
+    .player-position[data-position="ZAG"] {
+      background-color: #2196f3;
       color: white;
     }
 
@@ -343,10 +367,25 @@ import { DraftTeam, DraftConfig } from '../../models/draft.model';
     .player-name {
       font-weight: 500;
       font-size: 14px;
+      margin-bottom: 4px;
+    }
+    
+    .player-meta {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 12px;
+    }
+    
+    .player-club {
+      font-size: 12px;
+      color: #757575;
     }
 
-    .player-club {
+    .player-price {
+      font-size: 13px;
       color: #757575;
+      font-weight: 500;
     }
 
     .empty-position {
@@ -371,6 +410,8 @@ export class CurrentTeamComponent {
   @Input() draftConfig: DraftConfig | null = null;
   @Input() currentRound: number = 0;
   @Input() isLoading: boolean = false;
+
+  constructor(private teamLogoService: TeamLogoService) {}
 
   get positionCounts(): Record<string, number> {
     if (!this.team) {
@@ -434,5 +475,31 @@ export class CurrentTeamComponent {
     };
     
     return positions[position] || position;
+  }
+
+  getTeamLogo(club: string): string {
+    return this.teamLogoService.getTeamLogoPath(club);
+  }
+
+  getPositionCode(position: string): string {
+    if (!position) return 'SEM';
+    
+    const positionMap: Record<string, string> = {
+      'Goleiro': 'GOL',
+      'Lateral': 'LAT',
+      'Zagueiro': 'ZAG',
+      'Meia': 'MEI',
+      'Atacante': 'ATA',
+      'Técnico': 'TEC',
+      'Tecnico': 'TEC',
+      'GOL': 'GOL',
+      'LAT': 'LAT',
+      'ZAG': 'ZAG',
+      'MEI': 'MEI',
+      'ATA': 'ATA',
+      'TEC': 'TEC'
+    };
+    
+    return positionMap[position] || 'SEM';
   }
 } 

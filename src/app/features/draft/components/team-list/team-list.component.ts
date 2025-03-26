@@ -10,6 +10,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDividerModule } from '@angular/material/divider';
 
 import { DraftTeam, DraftOrder, DraftStatus } from '../../models/draft.model';
+import { TeamLogoService } from '../../../../core/services/team-logo.service';
 
 @Component({
   selector: 'app-team-list',
@@ -112,12 +113,17 @@ import { DraftTeam, DraftOrder, DraftStatus } from '../../models/draft.model';
                   
                   <div *ngIf="team.players.length > 0" class="players-list">
                     <div *ngFor="let player of team.players" class="player-item">
-                      <div class="player-position" [attr.data-position]="getPositionCode(player.posicao)">
-                        {{ (player.posicaoAbreviacao || player.posicao || 'SEM').toUpperCase() }}
+                      <div class="team-logo">
+                        <img [src]="getTeamLogo(player.clube)" [alt]="player.clube || 'Time'" class="team-logo-img">
                       </div>
                       <div class="player-info">
                         <div class="player-name">{{ player.apelido || player.nome || 'Sem nome' }}</div>
-                        <div class="player-club">{{ player.clubeAbreviacao || player.clube || 'Sem clube' }}</div>
+                        <div class="player-meta">
+                          <span class="player-position" [attr.data-position]="getPositionCode(player.posicao)">
+                            {{ (player.posicaoAbreviacao || player.posicao || 'SEM').toUpperCase() }}
+                          </span>
+                          <span class="player-price">R$ {{ (player.preco || 0).toFixed(2) }}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -376,17 +382,33 @@ import { DraftTeam, DraftOrder, DraftStatus } from '../../models/draft.model';
       box-shadow: 0 2px 5px rgba(0,0,0,0.15);
     }
 
-    .player-position {
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
+    .team-logo {
+      width: 36px;
+      height: 36px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 12px;
+      overflow: hidden;
+    }
+
+    .team-logo-img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .player-position {
+      display: inline-block;
+      padding: 3px 6px;
+      border-radius: 4px;
+      font-size: 11px;
       font-weight: bold;
+      letter-spacing: 0.5px;
       color: white;
       background-color: #aaa;
+      text-transform: uppercase;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+      margin-right: 4px;
     }
 
     .player-position[data-position="GOL"] {
@@ -433,6 +455,7 @@ import { DraftTeam, DraftOrder, DraftStatus } from '../../models/draft.model';
     .player-name {
       font-weight: 500;
       font-size: 14px;
+      margin-bottom: 4px;
     }
     
     .player-meta {
@@ -442,9 +465,10 @@ import { DraftTeam, DraftOrder, DraftStatus } from '../../models/draft.model';
       font-size: 12px;
     }
     
-    .player-club {
-      font-size: 12px;
+    .player-price {
+      font-size: 13px;
       color: #757575;
+      font-weight: 500;
     }
     
     /* Override Angular Material styling */
@@ -481,6 +505,8 @@ export class TeamListComponent {
   @Input() currentOrderIndex: number = -1;
   @Input() draftStatus: DraftStatus = 'not_started';
   @Input() isLoading: boolean = false;
+
+  constructor(private teamLogoService: TeamLogoService) {}
 
   // Used to check if team panel should be expanded
   isExpanded(team: DraftTeam): boolean {
@@ -561,5 +587,10 @@ export class TeamListComponent {
     };
     
     return positionMap[position] || 'SEM';
+  }
+
+  // Método para obter o logo do time
+  getTeamLogo(club: string): string {
+    return this.teamLogoService.getTeamLogoPath(club);
   }
 } 
