@@ -31,6 +31,9 @@ jobs:
       - name: Build
         run: npm run deploy
 
+      - name: List build output
+        run: ls -la dist/fantasy-web/browser
+
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
