@@ -372,9 +372,21 @@ export class CurrentTeamComponent {
 
     const counts: Record<string, number> = { 'GOL': 0, 'ZAG': 0, 'LAT': 0, 'MEI': 0, 'ATA': 0, 'TEC': 0 };
     
+    const positionMapping: Record<string, string> = {
+      'Goleiro': 'GOL',
+      'Zagueiro': 'ZAG',
+      'Lateral': 'LAT',
+      'Meia': 'MEI',
+      'Atacante': 'ATA',
+      'Técnico': 'TEC'
+    };
+    
     this.team.players.forEach(player => {
-      if (player.posicao in counts) {
-        counts[player.posicao]++;
+      for (const [fullPosition, code] of Object.entries(positionMapping)) {
+        if (player.posicao?.includes(fullPosition)) {
+          counts[code]++;
+          break;
+        }
       }
     });
     
@@ -387,7 +399,21 @@ export class CurrentTeamComponent {
 
   getPlayersByPosition(position: string): any[] {
     if (!this.team) return [];
-    return this.team.players.filter(player => player.posicao === position);
+    
+    const positionMapping: Record<string, string> = {
+      'Goleiro': 'GOL',
+      'Zagueiro': 'ZAG',
+      'Lateral': 'LAT',
+      'Meia': 'MEI',
+      'Atacante': 'ATA',
+      'Técnico': 'TEC'
+    };
+    
+    const fullPosition = Object.entries(positionMapping).find(([name, code]) => code === position)?.[0];
+    
+    if (!fullPosition) return [];
+    
+    return this.team.players.filter(player => player.posicao?.includes(fullPosition));
   }
 
   getPositionName(position: string): string {

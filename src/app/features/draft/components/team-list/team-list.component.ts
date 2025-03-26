@@ -401,6 +401,22 @@ export class TeamListComponent {
 
   // Count players by position
   countPlayersByPosition(team: DraftTeam, position: string): number {
-    return team.players.filter(player => player.posicao === position).length;
+    // Mapeamento de nomes de posição para as chaves que usamos no componente
+    const positionMapping: Record<string, string> = {
+      'Goleiro': 'GOL',
+      'Zagueiro': 'ZAG',
+      'Lateral': 'LAT',
+      'Meia': 'MEI',
+      'Atacante': 'ATA',
+      'Técnico': 'TEC'
+    };
+    
+    // Inverter o mapeamento para buscar o nome completo da posição
+    const fullPosition = Object.entries(positionMapping).find(([name, code]) => code === position)?.[0];
+    
+    if (!fullPosition) return 0;
+    
+    // Contar jogadores cuja posição inclui o nome completo da posição
+    return team.players.filter(player => player.posicao?.includes(fullPosition)).length;
   }
 } 
