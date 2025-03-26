@@ -4,6 +4,9 @@ import { provideHttpClient, withFetch } from '@angular/common/http';
 import { TranslateModule, TranslateLoader } from '@ngx-translate/core';
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
 import { HttpClient } from '@angular/common/http';
+import { TeamLogoService } from './core/services/team-logo.service';
+import { importProvidersFrom } from '@angular/core';
+import { CoreModule } from './core.module';
 
 import { routes } from './app.routes';
 import { provideClientHydration } from '@angular/platform-browser';
@@ -21,13 +24,16 @@ export const appConfig: ApplicationConfig = {
     provideClientHydration(),
     provideHttpClient(withFetch()),
     provideAnimations(),
-    TranslateModule.forRoot({
-      defaultLanguage: 'pt-BR',
-      loader: {
-        provide: TranslateLoader,
-        useFactory: createTranslateLoader,
-        deps: [HttpClient]
-      }
-    }).providers!
+    importProvidersFrom(CoreModule),
+    importProvidersFrom(
+      TranslateModule.forRoot({
+        loader: {
+          provide: TranslateLoader,
+          useFactory: (http: HttpClient) => new TranslateHttpLoader(http, './assets/i18n/', '.json'),
+          deps: [HttpClient]
+        }
+      })
+    ),
+    TeamLogoService
   ]
 };

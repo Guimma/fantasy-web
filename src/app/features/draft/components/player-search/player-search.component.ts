@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormControl } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -14,6 +14,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { Athlete } from '../../models/draft.model';
 import { DraftStatus } from '../../models/draft.model';
+import { TeamLogoService } from '../../../../core/services/team-logo.service';
 
 @Component({
   selector: 'app-player-search',
@@ -124,13 +125,15 @@ import { DraftStatus } from '../../models/draft.model';
               <mat-card-content>
                 <div class="player-card-content">
                   <div class="player-main-info">
-                    <div class="player-position" [attr.data-position]="player.posicao || 'SEM'">
-                      {{ (player.posicaoAbreviacao || player.posicao || 'SEM').toUpperCase() }}
+                    <div class="team-logo">
+                      <img [src]="getTeamLogo(player.clube)" [alt]="player.clube || 'Time'" class="team-logo-img">
                     </div>
                     <div class="player-details">
                       <span class="player-name">{{ player.apelido || player.nome || 'Sem nome' }}</span>
                       <div class="player-meta">
-                        <span class="player-club">{{ player.clube || 'Sem clube' }}</span>
+                        <span class="player-position" [attr.data-position]="getPositionCode(player.posicao)">
+                          {{ (player.posicaoAbreviacao || player.posicao || 'SEM').toUpperCase() }}
+                        </span>
                         <span class="player-price">R$ {{ (player.preco || 0).toFixed(2) }}</span>
                       </div>
                     </div>
@@ -293,45 +296,68 @@ import { DraftStatus } from '../../models/draft.model';
       gap: 12px;
     }
 
-    .player-position {
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
+    .team-logo {
+      width: 36px;
+      height: 36px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 12px;
-      font-weight: bold;
-      color: white;
-      background-color: #aaa;
+      overflow: hidden;
     }
 
-    .player-position[data-position="GOL"] {
+    .team-logo-img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    
+    .player-position {
+      display: inline-block;
+      padding: 3px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+      color: white;
+      background-color: #aaa;
+      text-transform: uppercase;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+      margin-right: 4px;
+    }
+
+    .player-position[data-position="GOL"], 
+    .player-position[data-position="Goleiro"] {
       background-color: #ffeb3b;
       color: #000;
     }
 
-    .player-position[data-position="LAT"] {
+    .player-position[data-position="LAT"], 
+    .player-position[data-position="Lateral"] {
       background-color: #4caf50;
       color: white;
     }
 
-    .player-position[data-position="ZAG"] {
+    .player-position[data-position="ZAG"], 
+    .player-position[data-position="Zagueiro"] {
       background-color: #2196f3;
       color: white;
     }
 
-    .player-position[data-position="MEI"] {
+    .player-position[data-position="MEI"], 
+    .player-position[data-position="Meia"] {
       background-color: #ff9800;
       color: #000;
     }
 
-    .player-position[data-position="ATA"] {
+    .player-position[data-position="ATA"], 
+    .player-position[data-position="Atacante"] {
       background-color: #f44336;
       color: white;
     }
 
-    .player-position[data-position="TEC"] {
+    .player-position[data-position="TEC"], 
+    .player-position[data-position="Técnico"],
+    .player-position[data-position="Tecnico"] {
       background-color: #607d8b;
       color: white;
     }
@@ -348,17 +374,13 @@ import { DraftStatus } from '../../models/draft.model';
 
     .player-name {
       font-weight: 500;
+      margin-bottom: 4px;
     }
 
     .player-meta {
       display: flex;
       gap: 8px;
       align-items: center;
-      font-size: 13px;
-      color: #757575;
-    }
-
-    .player-club {
       font-size: 13px;
       color: #757575;
     }
@@ -405,7 +427,7 @@ import { DraftStatus } from '../../models/draft.model';
     }
   `
 })
-export class PlayerSearchComponent implements OnChanges {
+export class PlayerSearchComponent implements OnChanges, OnInit {
   @Input() availablePlayers: Athlete[] = [];
   @Input() isCurrentTeamTurn: boolean = false;
   @Input() isLoading: boolean = false;
@@ -418,6 +440,8 @@ export class PlayerSearchComponent implements OnChanges {
 
   filteredPlayers: Athlete[] = [];
   uniqueClubs: string[] = [];
+
+  constructor(private teamLogoService: TeamLogoService) {}
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['availablePlayers']) {
@@ -549,5 +573,34 @@ export class PlayerSearchComponent implements OnChanges {
 
   get hasActiveFilters(): boolean {
     return !!(this.searchControl.value || this.positionControl.value || this.clubControl.value);
+  }
+
+  // Método para obter o código da posição a partir do nome completo
+  getPositionCode(position: string): string {
+    if (!position) return 'SEM';
+    
+    const positionMap: Record<string, string> = {
+      'Goleiro': 'GOL',
+      'Lateral': 'LAT',
+      'Zagueiro': 'ZAG',
+      'Meia': 'MEI',
+      'Atacante': 'ATA',
+      'Técnico': 'TEC',
+      'Tecnico': 'TEC',
+      // Já retorna a posição se ela já for uma abreviação
+      'GOL': 'GOL',
+      'LAT': 'LAT',
+      'ZAG': 'ZAG',
+      'MEI': 'MEI',
+      'ATA': 'ATA',
+      'TEC': 'TEC'
+    };
+    
+    return positionMap[position] || 'SEM';
+  }
+
+  // Método para obter a URL da logo do time
+  getTeamLogo(club: string): string {
+    return this.teamLogoService.getTeamLogoPath(club);
   }
 } 
