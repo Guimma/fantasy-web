@@ -722,8 +722,9 @@ export class DraftService {
         // Avançar para o próximo índice
         currentIndex++;
         
-        // Atualizar o índice atual na configuração
-        const updateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.CONFIG_DRAFT_RANGE}!A${configs.length + 1}:E${configs.length + 1}?valueInputOption=USER_ENTERED`;
+        // Atualizar o índice atual na configuração - CORREÇÃO DA URL
+        const rowIndex = configs.length + 1;
+        const updateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/ConfigDraft!A${rowIndex}:E${rowIndex}?valueInputOption=USER_ENTERED`;
         
         const updateBody = {
           values: [
