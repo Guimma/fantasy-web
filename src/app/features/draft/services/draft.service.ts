@@ -359,6 +359,8 @@ export class DraftService {
               console.log('Valores brutos do primeiro atleta:');
               console.log('id_atleta:', row[headerMapping['id_atleta']]);
               console.log('nome:', row[headerMapping['nome']]);
+              console.log('posicao (índice ' + headerMapping['posicao'] + '):', row[headerMapping['posicao']]);
+              console.log('posicao_abreviacao (índice ' + headerMapping['posicao_abreviacao'] + '):', row[headerMapping['posicao_abreviacao']]);
               console.log('clube (índice ' + headerMapping['clube'] + '):', row[headerMapping['clube']]);
               console.log('preco (índice ' + headerMapping['preco'] + '):', row[headerMapping['preco']]);
             }

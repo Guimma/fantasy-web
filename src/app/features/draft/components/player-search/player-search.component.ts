@@ -60,12 +60,12 @@ import { DraftStatus } from '../../models/draft.model';
               <mat-label>Posição</mat-label>
               <mat-select [formControl]="positionControl">
                 <mat-option value="">Todas</mat-option>
-                <mat-option value="GOL">Goleiro</mat-option>
-                <mat-option value="ZAG">Zagueiro</mat-option>
-                <mat-option value="LAT">Lateral</mat-option>
-                <mat-option value="MEI">Meia</mat-option>
-                <mat-option value="ATA">Atacante</mat-option>
-                <mat-option value="TEC">Técnico</mat-option>
+                <mat-option value="G">Goleiro</mat-option>
+                <mat-option value="Z">Zagueiro</mat-option>
+                <mat-option value="L">Lateral</mat-option>
+                <mat-option value="M">Meia</mat-option>
+                <mat-option value="A">Atacante</mat-option>
+                <mat-option value="T">Técnico</mat-option>
               </mat-select>
             </mat-form-field>
 
@@ -83,19 +83,19 @@ import { DraftStatus } from '../../models/draft.model';
           <div class="active-filters" *ngIf="hasActiveFilters">
             <div class="filter-chips">
               <div *ngIf="searchControl.value" class="filter-chip">
-                <span>{{ searchControl.value }}</span>
+                <span class="filter-text">{{ searchControl.value }}</span>
                 <button mat-icon-button (click)="searchControl.setValue('')">
                   <mat-icon>close</mat-icon>
                 </button>
               </div>
               <div *ngIf="positionControl.value" class="filter-chip">
-                <span>{{ getPositionLabel(positionControl.value) }}</span>
+                <span class="filter-text">{{ getPositionLabel(positionControl.value) }}</span>
                 <button mat-icon-button (click)="positionControl.setValue('')">
                   <mat-icon>close</mat-icon>
                 </button>
               </div>
               <div *ngIf="clubControl.value" class="filter-chip">
-                <span>{{ clubControl.value }}</span>
+                <span class="filter-text">{{ clubControl.value }}</span>
                 <button mat-icon-button (click)="clubControl.setValue('')">
                   <mat-icon>close</mat-icon>
                 </button>
@@ -227,16 +227,28 @@ import { DraftStatus } from '../../models/draft.model';
       font-size: 14px;
     }
 
+    .filter-text {
+      flex: 1;
+    }
+
     .filter-chip button {
       width: 24px;
       height: 24px;
       line-height: 24px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 4px;
     }
 
     .filter-chip mat-icon {
       font-size: 16px;
       width: 16px;
       height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     mat-divider {
@@ -282,43 +294,51 @@ import { DraftStatus } from '../../models/draft.model';
     }
 
     .player-position {
-      width: 40px;
-      height: 40px;
+      width: 30px;
+      height: 30px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-weight: 500;
       font-size: 12px;
+      font-weight: bold;
       color: white;
+      background-color: #aaa;
     }
 
     .player-position[data-position="GOL"] {
-      background-color: #ffa000;
-    }
-
-    .player-position[data-position="ZAG"] {
-      background-color: #2196f3;
+      background-color: #ffeb3b;
+      color: #000;
     }
 
     .player-position[data-position="LAT"] {
       background-color: #4caf50;
+      color: white;
+    }
+
+    .player-position[data-position="ZAG"] {
+      background-color: #2196f3;
+      color: white;
     }
 
     .player-position[data-position="MEI"] {
-      background-color: #9c27b0;
+      background-color: #ff9800;
+      color: #000;
     }
 
     .player-position[data-position="ATA"] {
       background-color: #f44336;
+      color: white;
     }
 
     .player-position[data-position="TEC"] {
       background-color: #607d8b;
+      color: white;
     }
 
     .player-position[data-position="SEM"] {
       background-color: #9e9e9e;
+      color: white;
     }
 
     .player-details {
@@ -383,6 +403,9 @@ export class PlayerSearchComponent implements OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['availablePlayers']) {
+      // Ordenar jogadores por preço (do maior para o menor)
+      this.availablePlayers.sort((a, b) => (b.preco || 0) - (a.preco || 0));
+      
       this.filteredPlayers = [...this.availablePlayers];
       this.extractUniqueClubs();
       this.applyFilters();
@@ -390,6 +413,15 @@ export class PlayerSearchComponent implements OnChanges {
       // Logar o primeiro jogador para verificação de dados
       if (this.availablePlayers.length > 0) {
         console.log('Exemplo de objeto de jogador:', this.availablePlayers[0]);
+        console.log('Preço do jogador mais caro:', this.availablePlayers[0].preco);
+        
+        // Contar jogadores por posição
+        const positionCount: Record<string, number> = {};
+        this.availablePlayers.forEach(player => {
+          const pos = player.posicao || 'Desconhecida';
+          positionCount[pos] = (positionCount[pos] || 0) + 1;
+        });
+        console.log('Contagem de jogadores por posição:', positionCount);
       }
     }
   }
@@ -398,6 +430,16 @@ export class PlayerSearchComponent implements OnChanges {
     this.searchControl.valueChanges.subscribe(() => this.applyFilters());
     this.positionControl.valueChanges.subscribe(() => this.applyFilters());
     this.clubControl.valueChanges.subscribe(() => this.applyFilters());
+    
+    // Logar informações sobre os valores do filtro de posição para depuração
+    this.positionControl.valueChanges.subscribe(value => {
+      console.log('Filtro de posição alterado para:', value);
+      if (this.availablePlayers.length > 0) {
+        const primeiroJogador = this.availablePlayers[0];
+        console.log('Exemplo de jogador - posição:', primeiroJogador.posicao);
+        console.log('Exemplo de jogador - posicaoAbreviacao:', primeiroJogador.posicaoAbreviacao);
+      }
+    });
   }
 
   extractUniqueClubs(): void {
@@ -412,12 +454,38 @@ export class PlayerSearchComponent implements OnChanges {
     const clubValue = this.clubControl.value || '';
 
     this.filteredPlayers = this.availablePlayers.filter(player => {
-      const nameMatch = player.nome.toLowerCase().includes(searchValue);
-      const positionMatch = !positionValue || player.posicao === positionValue;
+      // Verificar correspondência no nome ou apelido
+      const nameMatch = (player.nome?.toLowerCase().includes(searchValue) || 
+                         player.apelido?.toLowerCase().includes(searchValue));
+      
+      // Verificar se a posição corresponde - usando a propriedade posicao
+      let positionMatch = !positionValue; // Se não houver filtro, retorna true
+      
+      if (positionValue) {
+        // Mapeamento de abreviações para textos completos de posição
+        const positionMapping: Record<string, string> = {
+          'G': 'Goleiro',
+          'Z': 'Zagueiro',
+          'L': 'Lateral',
+          'M': 'Meia',
+          'A': 'Atacante',
+          'T': 'Técnico'
+        };
+        
+        const fullPosition = positionMapping[positionValue] || '';
+        
+        // Verificar se a posição do jogador contém o texto completo da posição
+        positionMatch = player.posicao?.includes(fullPosition) || false;
+      }
+      
+      // Verificar correspondência do clube
       const clubMatch = !clubValue || player.clube === clubValue;
       
       return nameMatch && positionMatch && clubMatch;
     });
+    
+    // Garantir que os jogadores filtrados permaneçam ordenados por preço
+    this.filteredPlayers.sort((a, b) => (b.preco || 0) - (a.preco || 0));
   }
 
   clearFilters(): void {
@@ -428,12 +496,12 @@ export class PlayerSearchComponent implements OnChanges {
 
   getPositionLabel(position: string): string {
     const positions: Record<string, string> = {
-      'GOL': 'Goleiro',
-      'ZAG': 'Zagueiro',
-      'LAT': 'Lateral',
-      'MEI': 'Meia',
-      'ATA': 'Atacante',
-      'TEC': 'Técnico'
+      'G': 'Goleiro',
+      'Z': 'Zagueiro',
+      'L': 'Lateral',
+      'M': 'Meia',
+      'A': 'Atacante',
+      'T': 'Técnico'
     };
     
     return positions[position] || position;

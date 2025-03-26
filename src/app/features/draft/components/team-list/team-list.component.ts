@@ -294,43 +294,51 @@ import { DraftTeam, DraftOrder, DraftStatus } from '../../models/draft.model';
     }
 
     .player-position {
-      width: 32px;
-      height: 32px;
+      width: 30px;
+      height: 30px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-weight: 500;
-      font-size: 11px;
+      font-size: 12px;
+      font-weight: bold;
       color: white;
+      background-color: #aaa;
     }
 
     .player-position[data-position="GOL"] {
-      background-color: #ffa000;
-    }
-
-    .player-position[data-position="ZAG"] {
-      background-color: #2196f3;
+      background-color: #ffeb3b;
+      color: #000;
     }
 
     .player-position[data-position="LAT"] {
       background-color: #4caf50;
+      color: white;
+    }
+
+    .player-position[data-position="ZAG"] {
+      background-color: #2196f3;
+      color: white;
     }
 
     .player-position[data-position="MEI"] {
-      background-color: #9c27b0;
+      background-color: #ff9800;
+      color: #000;
     }
 
     .player-position[data-position="ATA"] {
       background-color: #f44336;
+      color: white;
     }
 
     .player-position[data-position="TEC"] {
       background-color: #607d8b;
+      color: white;
     }
 
     .player-position[data-position="SEM"] {
       background-color: #9e9e9e;
+      color: white;
     }
 
     .player-info {
