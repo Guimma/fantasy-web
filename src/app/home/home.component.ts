@@ -35,14 +35,16 @@ import { MatRippleModule } from '@angular/material/core';
         </div>
         
         <div class="user-menu">
-          <button mat-button [matMenuTriggerFor]="userMenu" class="user-button">
+          <div class="user-button-container" [matMenuTriggerFor]="userMenu">
             <div class="user-avatar" *ngIf="!currentUser?.photoURL">
               {{ getUserInitials() }}
             </div>
             <img *ngIf="currentUser?.photoURL" [src]="currentUser.photoURL" class="user-photo" alt="Foto do usuário">
-            <span class="user-name">{{ currentUser?.name || 'Usuário' }}</span>
+            <div class="user-name-container">
+              <span class="user-name">{{ currentUser?.name || 'Usuário' }}</span>
+            </div>
             <mat-icon>arrow_drop_down</mat-icon>
-          </button>
+          </div>
           <mat-menu #userMenu="matMenu" xPosition="before">
             <div class="menu-header">
               <div class="menu-user-info">
@@ -223,19 +225,23 @@ import { MatRippleModule } from '@angular/material/core';
     .user-menu {
       position: relative;
     }
-
-    .user-button {
+    
+    .user-button-container {
       display: flex;
       align-items: center;
       gap: var(--spacing-sm);
-      padding: 4px 8px;
+      padding: 6px 12px 6px 6px;
       border-radius: 24px;
       border: 1px solid rgba(0, 0, 0, 0.08);
       background-color: white;
       transition: background-color 0.2s, box-shadow 0.2s;
+      min-width: 200px;
+      max-width: 320px;
+      height: auto;
+      cursor: pointer;
     }
-
-    .user-button:hover {
+    
+    .user-button-container:hover {
       background-color: #f5f5f5;
       box-shadow: var(--shadow-sm);
     }
@@ -270,11 +276,22 @@ import { MatRippleModule } from '@angular/material/core';
       height: 40px;
     }
 
+    .user-name-container {
+      flex: 1;
+      overflow: hidden;
+      padding-left: 8px;
+      text-align: left;
+    }
+
     .user-name {
-      max-width: 150px;
+      display: block;
+      width: 100%;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      font-size: 14px;
+      line-height: normal;
+      text-align: left;
     }
 
     .menu-header {
@@ -431,6 +448,10 @@ import { MatRippleModule } from '@angular/material/core';
 
       .logo-container h1 {
         font-size: 20px;
+      }
+
+      .user-button-container {
+        min-width: auto;
       }
 
       .user-name {
