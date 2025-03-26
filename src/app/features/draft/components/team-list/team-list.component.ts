@@ -112,12 +112,12 @@ import { DraftTeam, DraftOrder, DraftStatus } from '../../models/draft.model';
                   
                   <div *ngIf="team.players.length > 0" class="players-list">
                     <div *ngFor="let player of team.players" class="player-item">
-                      <div class="player-position" [attr.data-position]="player.posicao">
-                        {{ player.posicao }}
+                      <div class="player-position" [attr.data-position]="player.posicao || 'SEM'">
+                        {{ (player.posicaoAbreviacao || player.posicao || 'SEM').toUpperCase() }}
                       </div>
                       <div class="player-info">
-                        <span class="player-name">{{ player.nome }}</span>
-                        <span class="player-club">{{ player.clube }}</span>
+                        <div class="player-name">{{ player.apelido || player.nome || 'Sem nome' }}</div>
+                        <div class="player-club">{{ player.clubeAbreviacao || player.clube || 'Sem clube' }}</div>
                       </div>
                     </div>
                   </div>
@@ -329,16 +329,28 @@ import { DraftTeam, DraftOrder, DraftStatus } from '../../models/draft.model';
       background-color: #607d8b;
     }
 
+    .player-position[data-position="SEM"] {
+      background-color: #9e9e9e;
+    }
+
     .player-info {
       display: flex;
       flex-direction: column;
+      flex: 1;
     }
 
     .player-name {
       font-weight: 500;
       font-size: 14px;
     }
-
+    
+    .player-meta {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 12px;
+    }
+    
     .player-club {
       font-size: 12px;
       color: #757575;

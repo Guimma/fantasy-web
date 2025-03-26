@@ -33,11 +33,20 @@ export interface DraftConfig {
 
 export interface Athlete {
   id: string;
+  idCartola: string;
   nome: string;
-  posicao: string;
-  clube: string;
-  status: string;
+  apelido: string;
   foto_url?: string;
+  posicao: string;
+  posicaoAbreviacao: string;
+  clube: string;
+  clubeAbreviacao: string;
+  preco: number;
+  mediaPontos: number;
+  jogos: number;
+  status: string;
+  ultimaAtualizacao?: string;
+  dataCriacao?: string;
 }
 
 export interface PlayerAssignment {

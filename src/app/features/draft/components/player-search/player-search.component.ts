@@ -124,12 +124,15 @@ import { DraftStatus } from '../../models/draft.model';
               <mat-card-content>
                 <div class="player-card-content">
                   <div class="player-main-info">
-                    <div class="player-position" [attr.data-position]="player.posicao">
-                      {{ player.posicao }}
+                    <div class="player-position" [attr.data-position]="player.posicao || 'SEM'">
+                      {{ (player.posicaoAbreviacao || player.posicao || 'SEM').toUpperCase() }}
                     </div>
                     <div class="player-details">
-                      <span class="player-name">{{ player.nome }}</span>
-                      <span class="player-club">{{ player.clube }}</span>
+                      <span class="player-name">{{ player.apelido || player.nome || 'Sem nome' }}</span>
+                      <div class="player-meta">
+                        <span class="player-club">{{ player.clube || 'Sem clube' }}</span>
+                        <span class="player-price">R$ {{ (player.preco || 0).toFixed(2) }}</span>
+                      </div>
                     </div>
                   </div>
                   <div class="player-actions">
@@ -314,6 +317,10 @@ import { DraftStatus } from '../../models/draft.model';
       background-color: #607d8b;
     }
 
+    .player-position[data-position="SEM"] {
+      background-color: #9e9e9e;
+    }
+
     .player-details {
       display: flex;
       flex-direction: column;
@@ -321,6 +328,14 @@ import { DraftStatus } from '../../models/draft.model';
 
     .player-name {
       font-weight: 500;
+    }
+
+    .player-meta {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 13px;
+      color: #757575;
     }
 
     .player-club {
@@ -371,6 +386,11 @@ export class PlayerSearchComponent implements OnChanges {
       this.filteredPlayers = [...this.availablePlayers];
       this.extractUniqueClubs();
       this.applyFilters();
+      
+      // Logar o primeiro jogador para verificação de dados
+      if (this.availablePlayers.length > 0) {
+        console.log('Exemplo de objeto de jogador:', this.availablePlayers[0]);
+      }
     }
   }
 

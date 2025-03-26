@@ -15,7 +15,7 @@ export class DraftService {
   
   private readonly SHEET_ID = '1n3FjgSy19YCHZhsRA3HR0d92o3yAHhLBjYwEHSYJwjI';
   private readonly TEAMS_RANGE = 'Times!A:I'; // id_time, id_liga, id_usuario, nome, saldo, formacao_atual, pontuacao_total, pontuacao_ultima_rodada, colocacao
-  private readonly ATHLETES_RANGE = 'Atletas!A:F'; // id_atleta, nome, posicao, clube, status, foto_url
+  private readonly ATHLETES_RANGE = 'Atletas!A:P'; // id_atleta, id_cartola, nome, apelido, foto_url, posicao, posicao_abreviacao, clube, clube_abreviacao, preco, media_pontos, jogos, status, ultima_atualizacao, data_criacao
   private readonly CONFIG_DRAFT_RANGE = 'ConfigDraft!A:E'; // id_liga, data_hora, duracao_escolha, status, ordem_atual
   private readonly ORDEM_DRAFT_RANGE = 'OrdemDraft!A:D'; // id_liga, rodada, ordem, id_time
   private readonly ESCOLHAS_DRAFT_RANGE = 'EscolhasDraft!A:G'; // id_escolha, id_liga, rodada, ordem, id_time, id_atleta, timestamp
@@ -321,21 +321,84 @@ export class DraftService {
           return [];
         }
 
-        const athletes = response.values.slice(1).map((row: any) => {
-          if (!row[0] || !row[1] || !row[2] || !row[3]) {
-            console.warn('Linha de atleta com dados incompletos:', row);
+        // Log dos cabeçalhos da tabela de atletas
+        console.log('Cabeçalhos da tabela de atletas:', response.values[0]);
+
+        // Mapeamento dos cabeçalhos conhecidos
+        // Ordem esperada: id_atleta, id_cartola, nome, apelido, foto_url, posicao, posicao_abreviacao, 
+        // clube, clube_abreviacao, preco, media_pontos, jogos, status, ultima_atualizacao, data_criacao
+        const headerMapping: {[key: string]: number} = {};
+        response.values[0].forEach((header: string, index: number) => {
+          // Garantir que o cabeçalho está em minúsculas para uma comparação normalizada
+          const normalizedHeader = header.toString().toLowerCase().trim();
+          headerMapping[normalizedHeader] = index;
+          
+          // Adicionar mapeamentos alternativos para campos com variações
+          if (normalizedHeader === 'clube') headerMapping['clube'] = index;
+          if (normalizedHeader === 'clube_abreviacao') headerMapping['clube_abreviacao'] = index;
+          if (normalizedHeader === 'preco') headerMapping['preco'] = index;
+        });
+        
+        console.log('Mapeamento dos cabeçalhos:', headerMapping);
+        
+        // Depuração extra para campos problemáticos
+        console.log('Índice da coluna "clube":', headerMapping['clube']);
+        console.log('Índice da coluna "preco":', headerMapping['preco']);
+
+        const athletes = response.values.slice(1).map((row: any, index: number) => {
+          try {
+            // Não rejeitamos atletas se alguns dados faltarem - usamos valores default
+            // e apenas logamos um aviso
+            if (!row[headerMapping['id_atleta']] || !row[headerMapping['nome']]) {
+              console.warn(`Atleta na linha ${index + 2} com ID ou nome faltando:`, row);
+              return null;
+            }
+
+            // Depurar primeiro atleta com valores brutos
+            if (index === 0) {
+              console.log('Valores brutos do primeiro atleta:');
+              console.log('id_atleta:', row[headerMapping['id_atleta']]);
+              console.log('nome:', row[headerMapping['nome']]);
+              console.log('clube (índice ' + headerMapping['clube'] + '):', row[headerMapping['clube']]);
+              console.log('preco (índice ' + headerMapping['preco'] + '):', row[headerMapping['preco']]);
+            }
+
+            // Verificar se os campos críticos estão presentes
+            const clubeIndex = headerMapping['clube'];
+            const precoIndex = headerMapping['preco'];
+            
+            const clube = clubeIndex !== undefined && row[clubeIndex] ? row[clubeIndex] : 'Sem Clube';
+            const preco = precoIndex !== undefined && row[precoIndex] ? parseFloat(row[precoIndex]) : 0;
+
+            const athlete = {
+              id: row[headerMapping['id_atleta']] || `temp-${index}`,
+              idCartola: row[headerMapping['id_cartola']] || '',
+              nome: row[headerMapping['nome']] || 'Nome Desconhecido',
+              apelido: row[headerMapping['apelido']] || row[headerMapping['nome']] || 'Sem Apelido',
+              posicao: row[headerMapping['posicao']] || 'SEM',
+              posicaoAbreviacao: row[headerMapping['posicao_abreviacao']] || row[headerMapping['posicao']] || 'SEM',
+              clube: clube,
+              clubeAbreviacao: row[headerMapping['clube_abreviacao']] || '',
+              preco: preco,
+              mediaPontos: parseFloat(row[headerMapping['media_pontos']] || '0'),
+              jogos: parseInt(row[headerMapping['jogos']] || '0', 10),
+              status: row[headerMapping['status']] || 'Disponível',
+              foto_url: row[headerMapping['foto_url']] || '',
+              ultimaAtualizacao: row[headerMapping['ultima_atualizacao']] || '',
+              dataCriacao: row[headerMapping['data_criacao']] || ''
+            } as Athlete;
+
+            return athlete;
+          } catch (e) {
+            console.error(`Erro ao processar atleta na linha ${index + 2}:`, e, row);
             return null;
           }
-
-          return {
-            id: row[0],
-            nome: row[1],
-            posicao: row[2],
-            clube: row[3],
-            status: row[4] || 'Disponível',
-            foto_url: row[5]
-          } as Athlete;
         }).filter((athlete: Athlete | null): athlete is Athlete => athlete !== null);
+
+        // Log detalhado do primeiro atleta
+        if (athletes.length > 0) {
+          console.log('Detalhes completos do primeiro atleta:', JSON.stringify(athletes[0]));
+        }
 
         console.log(`Total de atletas carregados: ${athletes.length}`);
         return athletes;

@@ -104,9 +104,12 @@ import { DraftTeam, DraftConfig } from '../../models/draft.model';
               <div class="player-cards">
                 <div *ngFor="let player of getPlayersByPosition(position)" class="player-card">
                   <div class="player-card-content">
+                    <div class="player-position" [attr.data-position]="player.posicao || 'SEM'">
+                      {{ (player.posicaoAbreviacao || player.posicao || 'SEM').toUpperCase() }}
+                    </div>
                     <div class="player-info">
-                      <span class="player-name">{{ player.nome }}</span>
-                      <span class="player-club">{{ player.clube }}</span>
+                      <div class="player-name">{{ player.apelido || player.nome || 'Sem nome' }}</div>
+                      <div class="player-club">{{ player.clubeAbreviacao || player.clube || 'Sem clube' }}</div>
                     </div>
                   </div>
                 </div>
@@ -271,11 +274,55 @@ import { DraftTeam, DraftConfig } from '../../models/draft.model';
 
     .player-card-content {
       padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .player-position {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 500;
+      font-size: 11px;
+      color: white;
+    }
+
+    .player-position[data-position="GOL"] {
+      background-color: #ffa000;
+    }
+
+    .player-position[data-position="ZAG"] {
+      background-color: #2196f3;
+    }
+
+    .player-position[data-position="LAT"] {
+      background-color: #4caf50;
+    }
+
+    .player-position[data-position="MEI"] {
+      background-color: #9c27b0;
+    }
+
+    .player-position[data-position="ATA"] {
+      background-color: #f44336;
+    }
+
+    .player-position[data-position="TEC"] {
+      background-color: #607d8b;
+    }
+
+    .player-position[data-position="SEM"] {
+      background-color: #9e9e9e;
     }
 
     .player-info {
       display: flex;
       flex-direction: column;
+      flex: 1;
     }
 
     .player-name {
@@ -284,7 +331,6 @@ import { DraftTeam, DraftConfig } from '../../models/draft.model';
     }
 
     .player-club {
-      font-size: 12px;
       color: #757575;
     }
 
