@@ -1,0 +1,9 @@
+/* Adicionar ao final do arquivo */
+.time-up-notification {
+  background-color: #d32f2f !important;
+  color: white !important;
+}
+
+.time-up-notification .mat-simple-snackbar-action {
+  color: white !important;
+} 

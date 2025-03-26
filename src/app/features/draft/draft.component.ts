@@ -107,8 +107,8 @@ import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './mode
 
       <!-- Timer if draft is in progress -->
       <div *ngIf="draftStatus === 'in_progress'" class="timer-section">
-        <div class="timer" [ngClass]="{'timer-warning': remainingSeconds < 20}">
-          Tempo restante: {{ formatTime(remainingSeconds) }}
+        <div class="timer" [ngClass]="{'timer-warning': remainingSeconds < 20, 'timer-expired': remainingSeconds <= 0}">
+          {{ remainingSeconds <= 0 ? 'Tempo esgotado!' : 'Tempo restante: ' + formatTime(remainingSeconds) }}
         </div>
       </div>
 
@@ -269,10 +269,22 @@ import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './mode
       animation: pulse 1s infinite;
     }
 
+    .timer-expired {
+      background-color: #d32f2f;
+      animation: urgent-pulse 0.5s infinite;
+      font-weight: 700;
+    }
+
     @keyframes pulse {
       0% { opacity: 1; }
       50% { opacity: 0.8; }
       100% { opacity: 1; }
+    }
+
+    @keyframes urgent-pulse {
+      0% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.9; transform: scale(1.05); }
+      100% { opacity: 1; transform: scale(1); }
     }
 
     .draft-content {
@@ -678,10 +690,10 @@ export class DraftComponent implements OnInit, OnDestroy {
     this.timerInterval = setInterval(() => {
       this.remainingSeconds--;
       
-      if (this.remainingSeconds <= 0) {
-        // Tempo esgotado, escolher jogador automaticamente ou avançar
-        this.clearTimerInterval();
+      if (this.remainingSeconds === 0) {
+        // Tempo esgotado, mas não vamos parar o timer
         this.handleTimeUp();
+        // Continuamos o timer para valores negativos para manter o aviso visual
       }
     }, 1000);
   }
@@ -694,9 +706,11 @@ export class DraftComponent implements OnInit, OnDestroy {
   }
 
   handleTimeUp(): void {
-    // Implementar lógica para escolha automática ou avançar
-    this.snackBar.open('Tempo esgotado! Avançando para a próxima escolha', 'Fechar', { duration: 3000 });
-    this.moveToNextPick();
+    // Não avançar automaticamente, apenas notificar
+    this.snackBar.open('Tempo esgotado! O jogador deve ser selecionado manualmente.', 'Fechar', { 
+      duration: 0, // Não fecha automaticamente
+      panelClass: 'time-up-notification'
+    });
   }
 
   refreshData(): void {
