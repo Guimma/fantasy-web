@@ -1,42 +1,83 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatTabsModule } from '@angular/material/tabs';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatInputModule } from '@angular/material/input';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatDialogModule, MatDialog } from '@angular/material/dialog';
+import { MatBadgeModule } from '@angular/material/badge';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatSelectModule } from '@angular/material/select';
+import { MatExpansionModule } from '@angular/material/expansion';
+import { MatDialogModule, MatDialog } from '@angular/material/dialog';
+import { MatTabsModule } from '@angular/material/tabs';
+import { Subject, takeUntil, interval, Observable } from 'rxjs';
+
 import { GoogleAuthService } from '../../core/services/google-auth.service';
 import { DraftService } from './services/draft.service';
+import { CurrentTeamComponent } from './components/current-team/current-team.component';
+import { PlayerSearchComponent } from './components/player-search/player-search.component';
+import { TeamListComponent } from './components/team-list/team-list.component';
+import { ConfirmationDialogComponent } from './components/confirmation-dialog/confirmation-dialog.component';
 import { PlayerSelectionDialogComponent } from './components/player-selection-dialog/player-selection-dialog.component';
-import { TeamCardComponent } from './components/team-card/team-card.component';
-import { DraftStatusComponent } from './components/draft-status/draft-status.component';
-import { DraftOrderComponent } from './components/draft-order/draft-order.component';
-import { DraftConfigComponent } from './components/draft-config/draft-config.component';
-import { DraftTeam, DraftStatus, DraftOrder, Athlete } from './models/draft.model';
+
+import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './models/draft.model';
 
 @Component({
   selector: 'app-draft',
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
+    ReactiveFormsModule,
+    RouterModule,
     MatCardModule,
     MatButtonModule,
     MatIconModule,
-    MatTabsModule,
+    MatDividerModule,
+    MatInputModule,
+    MatFormFieldModule,
     MatProgressSpinnerModule,
-    MatDialogModule,
+    MatBadgeModule,
     MatSnackBarModule,
-    TeamCardComponent,
-    DraftStatusComponent,
-    DraftOrderComponent,
-    DraftConfigComponent,
+    MatChipsModule,
+    MatTooltipModule,
+    MatSelectModule,
+    MatExpansionModule,
+    MatDialogModule,
+    MatTabsModule,
+    CurrentTeamComponent,
+    PlayerSearchComponent,
+    TeamListComponent
   ],
   template: `
-    <div class="draft-container">
-      <div class="header-section">
-        <h1>Sistema de Draft</h1>
+    <!-- Admin access check -->
+    <div *ngIf="!isAdmin" class="access-denied">
+      <mat-card>
+        <mat-card-content>
+          <mat-icon color="warn">lock</mat-icon>
+          <h2>Acesso Restrito</h2>
+          <p>Apenas administradores podem acessar o sistema de Draft.</p>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <!-- Draft Interface -->
+    <div *ngIf="isAdmin" class="draft-container">
+      <!-- Header Section -->
+      <header class="draft-header">
+        <div class="draft-title">
+          <h1>Sistema de Draft</h1>
+          <div class="draft-status-chip" [ngClass]="draftStatusClass">
+            {{ draftStatusText }}
+          </div>
+        </div>
         <div class="draft-controls">
           <button 
             mat-raised-button 
@@ -48,104 +89,221 @@ import { DraftTeam, DraftStatus, DraftOrder, Athlete } from './models/draft.mode
           </button>
           <button 
             mat-raised-button 
-            color="accent" 
-            *ngIf="draftStatus === 'in_progress'"
-            [disabled]="isLoading"
-            (click)="selectCurrentPlayer()">
-            <mat-icon>person_add</mat-icon> Escolher Jogador
-          </button>
-          <button 
-            mat-raised-button 
             color="warn" 
             *ngIf="draftStatus === 'in_progress'"
             [disabled]="isLoading || !canFinishDraft()"
-            (click)="finishDraft()">
+            (click)="confirmFinishDraft()">
             <mat-icon>done_all</mat-icon> Finalizar Draft
           </button>
           <button 
             mat-raised-button 
-            *ngIf="draftStatus === 'finished'"
+            color="primary"
             [disabled]="isLoading" 
             (click)="refreshData()">
             <mat-icon>refresh</mat-icon> Atualizar
           </button>
         </div>
+      </header>
+
+      <!-- Timer if draft is in progress -->
+      <div *ngIf="draftStatus === 'in_progress'" class="timer-section">
+        <div class="timer" [ngClass]="{'timer-warning': remainingSeconds < 20}">
+          Tempo restante: {{ formatTime(remainingSeconds) }}
+        </div>
       </div>
 
-      <div class="draft-info-section">
-        <app-draft-status 
-          [status]="draftStatus" 
-          [currentTeam]="currentTeam" 
-          [currentRound]="currentRound"
-          [currentOrderIndex]="currentOrderIndex">
-        </app-draft-status>
-        
-        <app-draft-order 
-          *ngIf="draftStatus !== 'not_started'"
-          [draftOrder]="draftOrder"
-          [currentOrderIndex]="currentOrderIndex"
-          [teams]="teams">
-        </app-draft-order>
+      <!-- Main Content Area -->
+      <div class="draft-content">
+        <!-- Left Column: Current Team -->
+        <section class="column current-team-column">
+          <app-current-team 
+            [team]="currentTeam" 
+            [draftConfig]="draftConfig"
+            [currentRound]="currentRound"
+            [isLoading]="isLoading">
+          </app-current-team>
+        </section>
 
-        <app-draft-config
-          *ngIf="draftStatus === 'not_started'"
-          [teams]="teams"
-          [config]="draftConfig">
-        </app-draft-config>
+        <!-- Middle Column: Player Search -->
+        <section class="column player-search-column">
+          <app-player-search
+            [availablePlayers]="availablePlayers"
+            [isCurrentTeamTurn]="isCurrentTeamTurn()"
+            [isLoading]="isLoading"
+            [draftStatus]="draftStatus"
+            (playerSelected)="selectPlayer($event)">
+          </app-player-search>
+        </section>
+
+        <!-- Right Column: Team List -->
+        <section class="column team-list-column">
+          <app-team-list
+            [teams]="teams"
+            [currentTeamId]="currentTeam?.id"
+            [draftOrder]="draftOrder"
+            [currentOrderIndex]="currentOrderIndex"
+            [draftStatus]="draftStatus"
+            [isLoading]="isLoading">
+          </app-team-list>
+        </section>
       </div>
 
+      <!-- Loading Overlay -->
       <div *ngIf="isLoading" class="loading-overlay">
         <mat-spinner diameter="50"></mat-spinner>
         <p>Carregando...</p>
       </div>
-
-      <div *ngIf="!isLoading && draftStatus !== 'not_started'" class="teams-grid">
-        <app-team-card 
-          *ngFor="let team of teams" 
-          [team]="team"
-          [isCurrentTeam]="team.id === currentTeam?.id && draftStatus === 'in_progress'">
-        </app-team-card>
-      </div>
     </div>
   `,
   styles: `
-    .draft-container {
-      padding: 20px;
-      max-width: 1200px;
-      margin: 0 auto;
-      position: relative;
+    :host {
+      display: block;
+      height: 100%;
     }
-    
-    .header-section {
+
+    .access-denied {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+      
+      mat-card {
+        max-width: 400px;
+        text-align: center;
+        padding: 2rem;
+        
+        mat-icon {
+          font-size: 48px;
+          height: 48px;
+          width: 48px;
+          margin-bottom: 1rem;
+        }
+        
+        h2 {
+          margin-bottom: 1rem;
+          color: #f44336;
+        }
+      }
+    }
+
+    .draft-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      padding: 16px;
+      position: relative;
+      background-color: #f5f5f5;
+    }
+
+    .draft-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
+      background: white;
+      padding: 16px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-    
-    h1 {
-      margin: 0;
-      color: #3f51b5;
+
+    .draft-title {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      
+      h1 {
+        margin: 0;
+        font-size: 24px;
+        font-weight: 500;
+        color: #3f51b5;
+      }
     }
-    
+
+    .draft-status-chip {
+      padding: 4px 12px;
+      border-radius: 16px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .draft-status-not-started {
+      background-color: #e0e0e0;
+      color: #616161;
+    }
+
+    .draft-status-in-progress {
+      background-color: #2196f3;
+      color: white;
+    }
+
+    .draft-status-finished {
+      background-color: #4caf50;
+      color: white;
+    }
+
     .draft-controls {
       display: flex;
-      gap: 10px;
+      gap: 8px;
     }
-    
-    .draft-info-section {
-      margin-bottom: 30px;
+
+    .timer-section {
       display: flex;
-      gap: 20px;
-      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 16px;
     }
-    
-    .teams-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-      gap: 20px;
+
+    .timer {
+      background-color: #3f51b5;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-size: 16px;
+      font-weight: 500;
+      min-width: 150px;
+      text-align: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-    
+
+    .timer-warning {
+      background-color: #f44336;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.8; }
+      100% { opacity: 1; }
+    }
+
+    .draft-content {
+      display: flex;
+      flex: 1;
+      gap: 16px;
+      overflow: hidden;
+    }
+
+    .column {
+      flex: 1;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .current-team-column {
+      flex: 1;
+    }
+
+    .player-search-column {
+      flex: 1.2;
+    }
+
+    .team-list-column {
+      flex: 0.8;
+    }
+
     .loading-overlay {
       position: absolute;
       top: 0;
@@ -157,39 +315,48 @@ import { DraftTeam, DraftStatus, DraftOrder, Athlete } from './models/draft.mode
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      z-index: 10;
+      z-index: 100;
     }
-    
-    @media (max-width: 768px) {
-      .header-section {
+
+    @media (max-width: 1200px) {
+      .draft-content {
         flex-direction: column;
+      }
+      
+      .column {
+        max-height: 500px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .draft-header {
+        flex-direction: column;
+        gap: 16px;
         align-items: flex-start;
-        gap: 15px;
       }
       
       .draft-controls {
         width: 100%;
-        flex-wrap: wrap;
+        justify-content: center;
       }
     }
   `
 })
-export class DraftComponent implements OnInit {
-  // Serviços injetados
+export class DraftComponent implements OnInit, OnDestroy {
+  // Serviços
   private authService = inject(GoogleAuthService);
   private draftService = inject(DraftService);
   private dialog = inject(MatDialog);
   private snackBar = inject(MatSnackBar);
-
-  // Estado do componente
-  isLoading = false;
+  
+  // Estado da página
+  isAdmin = false;
+  isLoading = true;
   draftStatus: DraftStatus = 'not_started';
   teams: DraftTeam[] = [];
-  draftOrder: DraftOrder[] = [];
-  currentRound = 0;
-  currentOrderIndex = -1;
+  availablePlayers: Athlete[] = [];
   currentTeam: DraftTeam | null = null;
-  draftConfig = {
+  draftConfig: DraftConfig = {
     draftId: '',
     pickTime: 60,
     requiredPositions: {
@@ -199,34 +366,44 @@ export class DraftComponent implements OnInit {
       requiredCoach: 1
     }
   };
+  draftOrder: DraftOrder[] = [];
+  currentRound = 0;
+  currentOrderIndex = -1;
+  remainingSeconds = 0;
+  private timerInterval: any;
+  private destroy$ = new Subject<void>();
 
   ngOnInit(): void {
-    this.loadDraftData();
+    // Verificar se o usuário é admin
+    this.checkAdminStatus();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.clearTimerInterval();
+  }
+
+  private checkAdminStatus(): void {
+    this.isAdmin = this.authService.isAdmin();
+    
+    if (this.isAdmin) {
+      this.loadDraftData();
+    }
   }
 
   loadDraftData(): void {
     this.isLoading = true;
-    this.draftService.getDraftStatus().subscribe({
+    
+    // Primeiro carregamos o status do draft
+    this.draftService.getDraftStatus().pipe(
+      takeUntil(this.destroy$)
+    ).subscribe({
       next: (status) => {
         this.draftStatus = status;
         
         // Carregar times
-        this.draftService.getTeams().subscribe({
-          next: (teams) => {
-            this.teams = teams;
-            
-            // Se o draft estiver em andamento ou finalizado, carregar a ordem
-            if (this.draftStatus !== 'not_started') {
-              this.loadDraftOrderAndConfig();
-            } else {
-              this.isLoading = false;
-            }
-          },
-          error: (error) => {
-            this.handleError('Erro ao carregar times', error);
-            this.isLoading = false;
-          }
-        });
+        this.loadTeams();
       },
       error: (error) => {
         this.handleError('Erro ao carregar status do draft', error);
@@ -235,34 +412,92 @@ export class DraftComponent implements OnInit {
     });
   }
 
-  loadDraftOrderAndConfig(): void {
-    this.draftService.getDraftOrder().subscribe({
+  private loadTeams(): void {
+    this.draftService.getTeams().pipe(
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: (teams) => {
+        this.teams = teams;
+        
+        // Carregar jogadores disponíveis
+        this.loadAvailablePlayers();
+        
+        // Se o draft estiver em andamento ou finalizado, carregar detalhes adicionais
+        if (this.draftStatus !== 'not_started') {
+          this.loadDraftDetails();
+        } else {
+          this.loadDraftConfig();
+        }
+      },
+      error: (error) => {
+        this.handleError('Erro ao carregar times', error);
+        this.isLoading = false;
+      }
+    });
+  }
+
+  private loadAvailablePlayers(): void {
+    this.draftService.getAvailablePlayers().pipe(
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: (players) => {
+        this.availablePlayers = players;
+      },
+      error: (error) => {
+        this.handleError('Erro ao carregar jogadores disponíveis', error);
+      }
+    });
+  }
+
+  private loadDraftDetails(): void {
+    this.draftService.getDraftOrder().pipe(
+      takeUntil(this.destroy$)
+    ).subscribe({
       next: (orderData) => {
         this.draftOrder = orderData.order;
         this.currentRound = orderData.currentRound;
         this.currentOrderIndex = orderData.currentIndex;
         
-        if (this.currentOrderIndex >= 0 && this.currentOrderIndex < this.draftOrder.length) {
-          const currentTeamId = this.draftOrder[this.currentOrderIndex].teamId;
-          this.currentTeam = this.teams.find(team => team.id === currentTeamId) || null;
-        }
+        // Atualizar o time atual
+        this.updateCurrentTeam();
         
-        this.draftService.getDraftConfig().subscribe({
-          next: (config) => {
-            this.draftConfig = config;
-            this.isLoading = false;
-          },
-          error: (error) => {
-            this.handleError('Erro ao carregar configuração do draft', error);
-            this.isLoading = false;
-          }
-        });
+        // Carregar configuração
+        this.loadDraftConfig();
+        
+        // Iniciar timer se estiver em andamento
+        if (this.draftStatus === 'in_progress') {
+          this.startTimer();
+        }
       },
       error: (error) => {
-        this.handleError('Erro ao carregar ordem do draft', error);
+        this.handleError('Erro ao carregar detalhes do draft', error);
         this.isLoading = false;
       }
     });
+  }
+
+  private loadDraftConfig(): void {
+    this.draftService.getDraftConfig().pipe(
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: (config) => {
+        this.draftConfig = config;
+        this.isLoading = false;
+      },
+      error: (error) => {
+        this.handleError('Erro ao carregar configuração do draft', error);
+        this.isLoading = false;
+      }
+    });
+  }
+
+  private updateCurrentTeam(): void {
+    if (this.currentOrderIndex >= 0 && this.currentOrderIndex < this.draftOrder.length) {
+      const currentTeamId = this.draftOrder[this.currentOrderIndex].teamId;
+      this.currentTeam = this.teams.find(team => team.id === currentTeamId) || null;
+    } else {
+      this.currentTeam = null;
+    }
   }
 
   startDraft(): void {
@@ -272,10 +507,13 @@ export class DraftComponent implements OnInit {
     }
 
     this.isLoading = true;
-    this.draftService.startDraft().subscribe({
+    this.draftService.startDraft().pipe(
+      takeUntil(this.destroy$)
+    ).subscribe({
       next: () => {
         this.draftStatus = 'in_progress';
-        this.loadDraftOrderAndConfig();
+        // Recarregar os dados do draft
+        this.loadDraftDetails();
         this.snackBar.open('Draft iniciado com sucesso!', 'Fechar', { duration: 3000 });
       },
       error: (error) => {
@@ -285,107 +523,38 @@ export class DraftComponent implements OnInit {
     });
   }
 
-  selectCurrentPlayer(): void {
-    if (!this.currentTeam) {
-      this.snackBar.open('Nenhum time selecionado para escolha', 'Fechar', { duration: 3000 });
-      return;
-    }
-
-    this.isLoading = true;
-    this.draftService.getAvailablePlayers().subscribe({
-      next: (players) => {
-        this.isLoading = false;
-        
-        const dialogRef = this.dialog.open(PlayerSelectionDialogComponent, {
-          width: '800px',
-          data: {
-            team: this.currentTeam,
-            availablePlayers: players,
-            requiredPositions: this.draftConfig.requiredPositions
-          }
-        });
-
-        dialogRef.afterClosed().subscribe(selectedPlayer => {
-          if (selectedPlayer) {
-            this.assignPlayerToTeam(selectedPlayer);
-          }
-        });
-      },
-      error: (error) => {
-        this.handleError('Erro ao carregar jogadores disponíveis', error);
-        this.isLoading = false;
+  confirmFinishDraft(): void {
+    const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
+      width: '400px',
+      data: {
+        title: 'Finalizar Draft',
+        message: 'Tem certeza que deseja finalizar o draft? Esta ação não pode ser desfeita.',
+        confirmButton: 'Finalizar',
+        cancelButton: 'Cancelar'
       }
     });
-  }
 
-  assignPlayerToTeam(player: Athlete): void {
-    if (!this.currentTeam) return;
-    
-    this.isLoading = true;
-    this.draftService.assignPlayerToTeam(
-      this.currentTeam.id, 
-      player.id, 
-      this.currentRound, 
-      this.currentOrderIndex
-    ).subscribe({
-      next: () => {
-        // Atualizar o time atual com o novo jogador
-        if (this.currentTeam) {
-          this.currentTeam.players.push(player);
-        }
-        
-        // Avançar para a próxima escolha
-        this.moveToNextPick();
-        
-        this.snackBar.open(
-          `${player.nome} adicionado ao time ${this.currentTeam?.name}`, 
-          'Fechar', 
-          { duration: 3000 }
-        );
-      },
-      error: (error) => {
-        this.handleError('Erro ao atribuir jogador ao time', error);
-        this.isLoading = false;
-      }
-    });
-  }
-
-  moveToNextPick(): void {
-    this.isLoading = true;
-    this.draftService.advanceDraft().subscribe({
-      next: (orderData) => {
-        this.currentRound = orderData.currentRound;
-        this.currentOrderIndex = orderData.currentIndex;
-        
-        if (this.currentOrderIndex >= 0 && this.currentOrderIndex < this.draftOrder.length) {
-          const currentTeamId = this.draftOrder[this.currentOrderIndex].teamId;
-          this.currentTeam = this.teams.find(team => team.id === currentTeamId) || null;
-        } else {
-          // Se chegarmos ao fim do draft
-          this.currentTeam = null;
-          this.draftStatus = 'finished';
-        }
-        
-        this.isLoading = false;
-      },
-      error: (error) => {
-        this.handleError('Erro ao avançar para próxima escolha', error);
-        this.isLoading = false;
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.finishDraft();
       }
     });
   }
 
   finishDraft(): void {
     if (!this.canFinishDraft()) {
-      this.snackBar.open('Todos os times precisam atingir o mínimo de jogadores por posição', 'Fechar', { duration: 5000 });
+      this.snackBar.open('Todos os times precisam ter 18 jogadores, incluindo 11 titulares, 6 reservas e 1 técnico', 'Fechar', { duration: 5000 });
       return;
     }
 
     this.isLoading = true;
-    this.draftService.finishDraft().subscribe({
+    this.draftService.finishDraft().pipe(
+      takeUntil(this.destroy$)
+    ).subscribe({
       next: () => {
         this.draftStatus = 'finished';
         this.currentTeam = null;
+        this.clearTimerInterval();
         this.snackBar.open('Draft finalizado com sucesso!', 'Fechar', { duration: 3000 });
         this.isLoading = false;
       },
@@ -397,11 +566,16 @@ export class DraftComponent implements OnInit {
   }
 
   canFinishDraft(): boolean {
-    // Verifica se todos os times têm o mínimo de jogadores por posição
+    // Verificar se todos os times possuem 18 jogadores, sendo 11 titulares, 6 reservas e 1 técnico
     return this.teams.every(team => {
       // Contagem de jogadores por posição
       const positionCounts: Record<string, number> = {
-        GOL: 0, LAT: 0, ZAG: 0, MEI: 0, ATA: 0, TEC: 0
+        GOL: 0, 
+        LAT: 0, 
+        ZAG: 0, 
+        MEI: 0, 
+        ATA: 0, 
+        TEC: 0
       };
       
       // Contar jogadores por posição
@@ -411,21 +585,149 @@ export class DraftComponent implements OnInit {
         }
       });
       
-      // Verificar se todas as posições atendem aos requisitos mínimos
-      return Object.entries(this.draftConfig.requiredPositions).every(
-        ([position, required]) => positionCounts[position] >= required
-      );
+      // Total de jogadores
+      const totalPlayers = team.players.length;
+      
+      // Total de jogadores excluindo técnicos
+      const playersWithoutCoach = totalPlayers - positionCounts['TEC'];
+      
+      // Verificar condições
+      return totalPlayers === this.draftConfig.requiredPositions.totalPlayers &&
+             playersWithoutCoach === this.draftConfig.requiredPositions.starters + this.draftConfig.requiredPositions.reserves &&
+             positionCounts['TEC'] === this.draftConfig.requiredPositions.requiredCoach;
     });
+  }
+
+  selectPlayer(player: Athlete): void {
+    if (!this.currentTeam || this.draftStatus !== 'in_progress') {
+      this.snackBar.open('Não é possível selecionar jogador no momento', 'Fechar', { duration: 3000 });
+      return;
+    }
+
+    this.isLoading = true;
+    this.draftService.assignPlayerToTeam(
+      this.currentTeam.id,
+      player.id,
+      this.currentRound,
+      this.currentOrderIndex
+    ).pipe(
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: () => {
+        // Adicionar o jogador ao time atual
+        if (this.currentTeam) {
+          this.currentTeam.players.push(player);
+        }
+        
+        // Remover o jogador da lista de disponíveis
+        this.availablePlayers = this.availablePlayers.filter(p => p.id !== player.id);
+        
+        // Avançar para a próxima escolha
+        this.moveToNextPick();
+        
+        this.snackBar.open(
+          `${player.nome} adicionado ao time ${this.currentTeam?.name}`,
+          'Fechar',
+          { duration: 3000 }
+        );
+      },
+      error: (error) => {
+        this.handleError('Erro ao selecionar jogador', error);
+        this.isLoading = false;
+      }
+    });
+  }
+
+  moveToNextPick(): void {
+    this.clearTimerInterval();
+    
+    this.draftService.advanceDraft().pipe(
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: (orderData) => {
+        this.currentRound = orderData.currentRound;
+        this.currentOrderIndex = orderData.currentIndex;
+        
+        if (this.currentOrderIndex >= 0 && this.currentOrderIndex < this.draftOrder.length) {
+          // Atualizar o time atual
+          this.updateCurrentTeam();
+          
+          // Reiniciar o timer
+          if (this.draftStatus === 'in_progress') {
+            this.startTimer();
+          }
+        } else {
+          // Se chegamos ao fim do draft
+          this.currentTeam = null;
+          this.draftStatus = 'finished';
+        }
+        
+        this.isLoading = false;
+      },
+      error: (error) => {
+        this.handleError('Erro ao avançar para a próxima escolha', error);
+        this.isLoading = false;
+      }
+    });
+  }
+
+  startTimer(): void {
+    this.clearTimerInterval();
+    this.remainingSeconds = this.draftConfig.pickTime;
+    
+    this.timerInterval = setInterval(() => {
+      this.remainingSeconds--;
+      
+      if (this.remainingSeconds <= 0) {
+        // Tempo esgotado, escolher jogador automaticamente ou avançar
+        this.clearTimerInterval();
+        this.handleTimeUp();
+      }
+    }, 1000);
+  }
+
+  clearTimerInterval(): void {
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
+  }
+
+  handleTimeUp(): void {
+    // Implementar lógica para escolha automática ou avançar
+    this.snackBar.open('Tempo esgotado! Avançando para a próxima escolha', 'Fechar', { duration: 3000 });
+    this.moveToNextPick();
   }
 
   refreshData(): void {
     this.loadDraftData();
   }
 
+  isCurrentTeamTurn(): boolean {
+    return this.draftStatus === 'in_progress' && !!this.currentTeam;
+  }
+
+  formatTime(seconds: number): string {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  }
+
+  get draftStatusText(): string {
+    switch (this.draftStatus) {
+      case 'not_started': return 'Não Iniciado';
+      case 'in_progress': return 'Em Andamento';
+      case 'finished': return 'Finalizado';
+      default: return 'Desconhecido';
+    }
+  }
+
+  get draftStatusClass(): string {
+    return `draft-status-${this.draftStatus}`;
+  }
+
   private handleError(message: string, error: any): void {
     console.error(message, error);
-    this.snackBar.open(`${message}: ${error.message || 'Erro desconhecido'}`, 'Fechar', {
-      duration: 5000
-    });
+    this.snackBar.open(`${message}: ${error.message || 'Erro desconhecido'}`, 'Fechar', { duration: 5000 });
   }
 } 
