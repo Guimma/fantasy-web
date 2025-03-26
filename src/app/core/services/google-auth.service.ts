@@ -718,7 +718,17 @@ export class GoogleAuthService {
   }
 
   isManager(): boolean {
-    return this.hasRole('manager');
+    return this.currentUser?.role === 'manager';
+  }
+
+  async getAuthClient(): Promise<any> {
+    const user = this.currentUser;
+    if (!user?.accessToken) {
+      throw new Error('User not authenticated');
+    }
+    return {
+      getAccessToken: () => Promise.resolve({ token: user.accessToken })
+    };
   }
 
   validateSheetAccess(): Promise<boolean> {
