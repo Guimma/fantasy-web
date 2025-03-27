@@ -766,6 +766,9 @@ export class GoogleAuthService {
             } else if (error.status === 401) {
               // Unauthorized - token issue
               console.error('Authentication failed. Token may be invalid.');
+              
+              // Como estamos usando o interceptor global, não precisamos
+              // tratar aqui o refresh do token, o interceptor já fará isso
             }
             resolve(false);
           }

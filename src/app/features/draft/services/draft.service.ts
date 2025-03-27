@@ -371,6 +371,8 @@ export class DraftService {
   }
 
   // Helper para fazer requisições HTTP com renovação automática de token
+  // Este método agora é apenas um wrapper sobre o HttpClient, já que a renovação
+  // do token é feita pelo interceptor global GoogleAuthInterceptor
   private makeAuthorizedRequest<T>(
     method: 'get' | 'post' | 'put', 
     url: string, 
@@ -382,35 +384,8 @@ export class DraftService {
       return throwError(() => new Error('Usuário não autenticado'));
     }
 
-    return this.executeRequest<T>(method, url, accessToken, body, params).pipe(
-      catchError(error => {
-        // Verificar se é um erro de autenticação (401)
-        if (error.status === 401) {
-          console.log('Token expirado, tentando renovar...');
-          // Tentar renovar o token e refazer a requisição
-          return this.authService.refreshToken().pipe(
-            switchMap(newToken => {
-              console.log('Token renovado, refazendo requisição...');
-              return this.executeRequest<T>(method, url, newToken, body, params);
-            })
-          );
-        }
-        // Se não for 401, propagar o erro
-        return throwError(() => error);
-      })
-    );
-  }
-
-  // Executar a requisição HTTP com um token específico
-  private executeRequest<T>(
-    method: 'get' | 'post' | 'put', 
-    url: string, 
-    token: string, 
-    body?: any, 
-    params?: any
-  ): Observable<T> {
     const headers = {
-      'Authorization': `Bearer ${token}`,
+      'Authorization': `Bearer ${accessToken}`,
       'Content-Type': 'application/json'
     };
     
