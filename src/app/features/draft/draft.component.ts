@@ -17,7 +17,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatTabsModule } from '@angular/material/tabs';
-import { Subject, takeUntil, interval, Observable } from 'rxjs';
+import { Subject, takeUntil, interval, Observable, switchMap } from 'rxjs';
 
 import { GoogleAuthService } from '../../core/services/google-auth.service';
 import { DraftService } from './services/draft.service';
@@ -445,27 +445,54 @@ export class DraftComponent implements OnInit, OnDestroy {
   }
 
   private loadTeams(): void {
-    this.draftService.getTeams().pipe(
-      takeUntil(this.destroy$)
-    ).subscribe({
-      next: (teams) => {
-        this.teams = teams;
-        
-        // Carregar jogadores disponíveis
-        this.loadAvailablePlayers();
-        
-        // Se o draft estiver em andamento ou finalizado, carregar detalhes adicionais
-        if (this.draftStatus !== 'not_started') {
+    // Se o draft estiver finalizado, carregamos o histórico das escolhas
+    if (this.draftStatus === 'finished') {
+      // Primeiro carregamos a configuração para obter o ID do draft
+      this.draftService.getDraftConfig().pipe(
+        takeUntil(this.destroy$),
+        switchMap(config => {
+          // Usando a nova função para carregar times a partir do histórico das escolhas
+          return this.draftService.getDraftTeamHistory(config.draftId);
+        })
+      ).subscribe({
+        next: (teams) => {
+          this.teams = teams;
+          
+          // Carregar jogadores disponíveis
+          this.loadAvailablePlayers();
+          
+          // Carregar detalhes adicionais do draft
           this.loadDraftDetails();
-        } else {
-          this.loadDraftConfig();
+        },
+        error: (error) => {
+          this.handleError('Erro ao carregar histórico de times do draft', error);
+          this.isLoading = false;
         }
-      },
-      error: (error) => {
-        this.handleError('Erro ao carregar times', error);
-        this.isLoading = false;
-      }
-    });
+      });
+    } else {
+      // Para draft não finalizado, usar o comportamento original
+      this.draftService.getTeams().pipe(
+        takeUntil(this.destroy$)
+      ).subscribe({
+        next: (teams) => {
+          this.teams = teams;
+          
+          // Carregar jogadores disponíveis
+          this.loadAvailablePlayers();
+          
+          // Se o draft estiver em andamento, carregar detalhes adicionais
+          if (this.draftStatus !== 'not_started') {
+            this.loadDraftDetails();
+          } else {
+            this.loadDraftConfig();
+          }
+        },
+        error: (error) => {
+          this.handleError('Erro ao carregar times', error);
+          this.isLoading = false;
+        }
+      });
+    }
   }
 
   private loadAvailablePlayers(): void {

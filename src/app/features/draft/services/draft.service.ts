@@ -794,11 +794,9 @@ export class DraftService {
 
   // Reiniciar o Draft (resetar para o estado inicial)
   resetDraft(): Observable<boolean> {
-    // 1. Limpar a tabela de escolhas do draft
-    return this.clearSheetData(this.ESCOLHAS_DRAFT_RANGE).pipe(
-      // 2. Limpar os elencos dos times
-      switchMap(() => this.clearSheetData(this.ELENCOS_TIMES_RANGE)),
-      // 3. Definir o status do draft como "Não iniciado"
+    // 1. Limpar apenas os elencos dos times
+    return this.clearSheetData(this.ELENCOS_TIMES_RANGE).pipe(
+      // 2. Definir o status do draft como "Não iniciado"
       switchMap(() => {
         const ligaId = '1'; // Default liga id
         const now = new Date().toISOString();
@@ -819,9 +817,9 @@ export class DraftService {
 
         return this.makeAuthorizedRequest<any>('post', url, body);
       }),
-      // 4. Limpar a ordem do draft
+      // 3. Limpar a ordem do draft
       switchMap(() => this.clearSheetData(this.ORDEM_DRAFT_RANGE)),
-      // 5. Limpar os caches
+      // 4. Limpar os caches
       map(() => {
         this.storageService.set(this.DRAFT_STATUS_KEY, 'not_started' as DraftStatus);
         this.storageService.remove(this.DRAFT_TEAMS_KEY);
@@ -871,5 +869,76 @@ export class DraftService {
   // Auxiliar para gerar ID único
   private generateUniqueId(): string {
     return Date.now().toString(36) + Math.random().toString(36).substring(2);
+  }
+
+  // Obter times para o Draft finalizado usando a aba EscolhasDraft como histórico
+  getDraftTeamHistory(draftId: string): Observable<DraftTeam[]> {
+    // Primeiro obtemos as informações básicas dos times
+    return this.makeAuthorizedRequest<any>('get', 
+      `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.TEAMS_RANGE}`
+    ).pipe(
+      switchMap(response => {
+        if (!response.values || response.values.length <= 1) {
+          return of([]);
+        }
+
+        const teams = response.values.slice(1).map((row: any) => {
+          return {
+            id: row[0],
+            ligaId: row[1],
+            userId: row[2],
+            name: row[3],
+            saldo: parseFloat(row[4] || '0'),
+            formacao: row[5],
+            pontuacaoTotal: parseFloat(row[6] || '0'),
+            pontuacaoUltimaRodada: parseFloat(row[7] || '0'),
+            colocacao: parseInt(row[8] || '0', 10),
+            players: [] // Inicialmente vazio, vamos preencher depois
+          } as DraftTeam;
+        });
+
+        // Buscar as escolhas do draft registradas na aba EscolhasDraft
+        return this.makeAuthorizedRequest<any>('get',
+          `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.ESCOLHAS_DRAFT_RANGE}`
+        ).pipe(
+          switchMap(draftChoices => {
+            if (!draftChoices.values || draftChoices.values.length <= 1) {
+              return of(teams); // Sem escolhas registradas, retornar times vazios
+            }
+
+            // Mapear id_time -> id_atleta das escolhas do draft
+            const teamPlayerMap = new Map<string, string[]>();
+            
+            // Filtrar escolhas pela liga especificada (draftId)
+            const choices = draftChoices.values.slice(1)
+              .filter((row: any) => row[1] === draftId);
+            
+            choices.forEach((row: any) => {
+              const teamId = row[4]; // id_time está na posição 4
+              const athleteId = row[5]; // id_atleta está na posição 5
+              
+              if (!teamPlayerMap.has(teamId)) {
+                teamPlayerMap.set(teamId, []);
+              }
+              
+              teamPlayerMap.get(teamId)?.push(athleteId);
+            });
+
+            // Agora buscar detalhes dos atletas escolhidos
+            return this.getAllAthletes().pipe(
+              map(athletes => {
+                // Associar cada atleta ao seu time conforme as escolhas do draft
+                teams.forEach((team: DraftTeam) => {
+                  const athleteIds = teamPlayerMap.get(team.id) || [];
+                  team.players = athletes.filter(athlete => athleteIds.includes(athlete.id));
+                });
+                
+                return teams;
+              })
+            );
+          })
+        );
+      })
+    );
   }
 } 
