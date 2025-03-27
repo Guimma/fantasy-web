@@ -322,18 +322,19 @@ export class GoogleAuthService {
       return 1; // Primeiro usuário
     }
     
-    // Encontrar o maior ID existente e adicionar 1
     try {
+      // Extrair todos os IDs existentes e converter para números
       const ids = existingRows
-        .map(row => row[0]) // Pegar a primeira coluna (id)
-        .filter(id => id && !isNaN(Number(id))) // Filtrar apenas IDs válidos
-        .map(id => Number(id)); // Converter para número
+        .map(row => parseInt(row[0], 10)) // Converter para número usando base 10
+        .filter(id => !isNaN(id)); // Remover IDs inválidos
       
       if (ids.length === 0) {
         return 1;
       }
       
-      return Math.max(...ids) + 1;
+      // Encontrar o maior ID e adicionar 1
+      const maxId = Math.max(...ids);
+      return maxId + 1;
     } catch (error) {
       console.error('Erro ao gerar ID, usando timestamp como fallback:', error);
       // Fallback para timestamp como ID
