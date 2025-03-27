@@ -1,6 +1,6 @@
 import { Injectable, inject, NgZone, PLATFORM_ID } from '@angular/core';
 import { Router } from '@angular/router';
-import { BehaviorSubject, Observable, from, of } from 'rxjs';
+import { BehaviorSubject, Observable, from, of, throwError } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { StorageService } from './storage.service';
 import { isPlatformBrowser } from '@angular/common';
@@ -34,6 +34,8 @@ export class GoogleAuthService {
   private readonly SHEET_ID = '1n3FjgSy19YCHZhsRA3HR0d92o3yAHhLBjYwEHSYJwjI';
   private readonly USERS_RANGE = 'Usuarios!A:F'; // id_usuario, email, nome, perfil, data_cadastro, ativo
   private readonly TEAMS_RANGE = 'Times!A:I'; // id_time, id_liga, id_usuario, nome, saldo, formacao_atual, pontuacao_total, pontuacao_ultima_rodada, colocacao
+  private isRefreshing = false;
+  private refreshTokenSubject: BehaviorSubject<string | null> = new BehaviorSubject<string | null>(null);
   
   private router = inject(Router);
   private http = inject(HttpClient);
@@ -226,7 +228,7 @@ export class GoogleAuthService {
           .then(() => {
             // URL para buscar os usuários na planilha
             const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.USERS_RANGE}`;
-            const headers = { 
+            const headers = {
               'Authorization': `Bearer ${accessToken}`,
               'Content-Type': 'application/json'
             };
@@ -294,21 +296,13 @@ export class GoogleAuthService {
               },
               error: (error) => {
                 console.error('Erro ao verificar usuário na planilha:', error);
-                // Em caso de erro, ainda permitimos o login mas com o perfil padrão
-                this.storageService.set(this.USER_KEY, user);
-                this.storageService.set(this.TOKEN_KEY, user.accessToken);
-                this.userSubject.next(user);
-                resolve();
+                reject(error);
               }
             });
           })
           .catch(error => {
             console.error('Erro ao garantir cabeçalhos:', error);
-            // Falhar graciosamente permitindo o login de qualquer forma
-            this.storageService.set(this.USER_KEY, user);
-            this.storageService.set(this.TOKEN_KEY, user.accessToken);
-            this.userSubject.next(user);
-            resolve();
+            reject(error);
           });
       } catch (error) {
         console.error('Erro ao verificar usuário:', error);
@@ -351,7 +345,7 @@ export class GoogleAuthService {
     return new Promise((resolve, reject) => {
       // Primeiro obter os dados existentes para gerar um ID único
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.USERS_RANGE}`;
-      const headers = { 
+      const headers = {
         'Authorization': `Bearer ${user.accessToken}`,
         'Content-Type': 'application/json'
       };
@@ -395,21 +389,12 @@ export class GoogleAuthService {
             },
             error: (error) => {
               console.error('Erro ao adicionar usuário à planilha:', error);
-              // Mesmo com erro, salvamos o usuário localmente com perfil padrão
-              user.role = 'user';
-              this.storageService.set(this.USER_KEY, user);
-              this.storageService.set(this.TOKEN_KEY, user.accessToken);
-              this.userSubject.next(user);
               reject(error);
             }
           });
         },
         error: (error) => {
           console.error('Erro ao obter dados para gerar ID:', error);
-          user.role = 'user';
-          this.storageService.set(this.USER_KEY, user);
-          this.storageService.set(this.TOKEN_KEY, user.accessToken);
-          this.userSubject.next(user);
           reject(error);
         }
       });
@@ -431,7 +416,7 @@ export class GoogleAuthService {
           .then(() => {
             // Buscar times do usuário
             const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.TEAMS_RANGE}`;
-            const headers = { 
+            const headers = {
               'Authorization': `Bearer ${user.accessToken}`,
               'Content-Type': 'application/json'
             };
@@ -565,7 +550,7 @@ export class GoogleAuthService {
 
       // Obter os times existentes para gerar um ID único
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.TEAMS_RANGE}`;
-      const headers = { 
+      const headers = {
         'Authorization': `Bearer ${user.accessToken}`,
         'Content-Type': 'application/json'
       };
@@ -777,8 +762,35 @@ export class GoogleAuthService {
     });
   }
 
+  // Método para fazer requisições HTTP com retry em caso de token expirado
+  private makeAuthenticatedRequest<T>(request: Observable<T>): Observable<T> {
+    return request.pipe(
+      catchError(error => {
+        if (error.status === 401 && !this.isRefreshing) {
+          this.isRefreshing = true;
+          return this.refreshToken().pipe(
+            switchMap(newToken => {
+              this.isRefreshing = false;
+              this.refreshTokenSubject.next(newToken);
+              // Retry the original request with the new token
+              return request;
+            }),
+            catchError(refreshError => {
+              this.isRefreshing = false;
+              this.refreshTokenSubject.next(null);
+              // If refresh fails, sign out the user
+              this.signOut();
+              return throwError(() => refreshError);
+            })
+          );
+        }
+        return throwError(() => error);
+      })
+    );
+  }
+
   // Renovar o token quando expirar (401)
-  refreshToken(): Observable<string> {
+  public refreshToken(): Observable<string> {
     return new Observable(observer => {
       if (!isPlatformBrowser(this.platformId)) {
         observer.error('Renovação de token só pode ser realizada no navegador');
@@ -807,6 +819,7 @@ export class GoogleAuthService {
                 currentUser.accessToken = tokenResponse.access_token;
                 this.userSubject.next(currentUser);
                 this.storageService.set(this.USER_KEY, currentUser);
+                this.storageService.set(this.TOKEN_KEY, tokenResponse.access_token);
                 console.log('Token renovado com sucesso');
                 observer.next(tokenResponse.access_token);
                 observer.complete();
@@ -829,5 +842,17 @@ export class GoogleAuthService {
         observer.error(error);
       }
     });
+  }
+
+  // Método auxiliar para criar headers com o token atual
+  private getAuthHeaders(): { [key: string]: string } {
+    const user = this.currentUser;
+    if (!user?.accessToken) {
+      throw new Error('Usuário não autenticado');
+    }
+    return {
+      'Authorization': `Bearer ${user.accessToken}`,
+      'Content-Type': 'application/json'
+    };
   }
 } 
