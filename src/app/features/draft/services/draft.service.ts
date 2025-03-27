@@ -74,20 +74,15 @@ export class DraftService {
 
   private ensureSheetWithHeaders(sheetName: string, range: string, headers: string[]): Promise<void> {
     return new Promise((resolve, reject) => {
-      const accessToken = this.authService.currentUser?.accessToken;
-      if (!accessToken) {
+      if (!this.authService.currentUser?.accessToken) {
         reject('Usuário não autenticado');
         return;
       }
 
       // Verificar se a planilha já tem cabeçalho
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${range}`;
-      const headers_ = {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      };
-
-      this.http.get(url, { headers: headers_ }).subscribe({
+      
+      this.makeAuthorizedRequest<any>('get', url).subscribe({
         next: (response: any) => {
           // Se não houver valores ou a primeira linha não tiver os cabeçalhos esperados
           if (!response.values || response.values.length === 0) {
@@ -113,23 +108,18 @@ export class DraftService {
 
   private addHeadersToSheet(sheetName: string, range: string, headers: string[]): Promise<void> {
     return new Promise((resolve, reject) => {
-      const accessToken = this.authService.currentUser?.accessToken;
-      if (!accessToken) {
+      if (!this.authService.currentUser?.accessToken) {
         reject('Usuário não autenticado');
         return;
       }
 
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`;
-      const headers_ = {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      };
-
+      
       const body = {
         values: [headers]
       };
 
-      this.http.put(url, body, { headers: headers_ }).subscribe({
+      this.makeAuthorizedRequest<any>('put', url, body).subscribe({
         next: () => {
           console.log(`Cabeçalhos de ${sheetName} adicionados com sucesso`);
           resolve();
@@ -152,19 +142,10 @@ export class DraftService {
       return of(cachedStatus);
     }
 
-    // Se não temos em cache, buscar da planilha
-    const accessToken = this.authService.currentUser?.accessToken;
-    if (!accessToken) {
-      return throwError(() => new Error('Usuário não autenticado'));
-    }
-
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.CONFIG_DRAFT_RANGE}`;
-    const headers = {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    };
-
-    return this.http.get<any>(url, { headers }).pipe(
+    // Se não temos em cache, buscar da planilha usando o sistema de renovação de token
+    return this.makeAuthorizedRequest<any>('get',
+      `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.CONFIG_DRAFT_RANGE}`
+    ).pipe(
       map(response => {
         // Se não houver dados ou apenas o cabeçalho, o draft não começou
         if (!response.values || response.values.length <= 1) {
@@ -289,39 +270,9 @@ export class DraftService {
 
   // Obter todos os atletas com renovação automática do token
   getAllAthletes(): Observable<Athlete[]> {
-    const accessToken = this.authService.currentUser?.accessToken;
-    if (!accessToken) {
-      return throwError(() => new Error('Usuário não autenticado'));
-    }
-
-    return this.fetchAthletesWithToken(accessToken).pipe(
-      catchError(error => {
-        // Verificar se é um erro de autenticação (401)
-        if (error.status === 401) {
-          console.log('Token expirado, tentando renovar...');
-          // Tentar renovar o token e refazer a requisição
-          return this.authService.refreshToken().pipe(
-            switchMap(newToken => {
-              console.log('Token renovado, refazendo requisição...');
-              return this.fetchAthletesWithToken(newToken);
-            })
-          );
-        }
-        // Se não for 401, propagar o erro
-        return throwError(() => error);
-      })
-    );
-  }
-
-  // Método separado para obter atletas com um token específico
-  private fetchAthletesWithToken(token: string): Observable<Athlete[]> {
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.ATHLETES_RANGE}`;
-    const headers = {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    };
-
-    return this.http.get<any>(url, { headers }).pipe(
+    return this.makeAuthorizedRequest<any>('get', 
+      `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.ATHLETES_RANGE}`
+    ).pipe(
       map(response => {
         if (!response.values || response.values.length <= 1) {
           console.warn('Nenhum atleta encontrado na planilha');
@@ -544,19 +495,10 @@ export class DraftService {
       return of(cachedConfig);
     }
 
-    // Se não temos em cache, buscar da planilha
-    const accessToken = this.authService.currentUser?.accessToken;
-    if (!accessToken) {
-      return throwError(() => new Error('Usuário não autenticado'));
-    }
-
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.CONFIG_DRAFT_RANGE}`;
-    const headers = {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    };
-
-    return this.http.get<any>(url, { headers }).pipe(
+    // Se não temos em cache, buscar da planilha usando o sistema de renovação de token
+    return this.makeAuthorizedRequest<any>('get',
+      `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.CONFIG_DRAFT_RANGE}`
+    ).pipe(
       map(response => {
         if (!response.values || response.values.length <= 1) {
           // Configuração padrão
@@ -596,11 +538,6 @@ export class DraftService {
 
   // Iniciar o Draft
   startDraft(): Observable<boolean> {
-    const accessToken = this.authService.currentUser?.accessToken;
-    if (!accessToken) {
-      return throwError(() => new Error('Usuário não autenticado'));
-    }
-
     // Obter todos os times para o sorteio
     return this.getTeams().pipe(
       switchMap(teams => {
@@ -609,21 +546,17 @@ export class DraftService {
         }
 
         // Criar a configuração do draft
-        return this.createDraftConfig(teams, accessToken);
+        return this.createDraftConfig(teams);
       })
     );
   }
 
-  private createDraftConfig(teams: DraftTeam[], accessToken: string): Observable<boolean> {
+  private createDraftConfig(teams: DraftTeam[]): Observable<boolean> {
     const now = new Date().toISOString();
     const ligaId = teams.length > 0 ? teams[0].ligaId : '1';
     
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.CONFIG_DRAFT_RANGE}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
-    const headers = {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    };
-
+    
     const body = {
       values: [
         [
@@ -636,18 +569,18 @@ export class DraftService {
       ]
     };
 
-    return this.http.post<any>(url, body, { headers }).pipe(
+    return this.makeAuthorizedRequest<any>('post', url, body).pipe(
       switchMap(() => {
         // Atualizar status local
         this.storageService.set(this.DRAFT_STATUS_KEY, 'in_progress' as DraftStatus);
         
         // Agora criar a ordem do draft
-        return this.createDraftOrder(teams, ligaId, accessToken);
+        return this.createDraftOrder(teams, ligaId);
       })
     );
   }
 
-  private createDraftOrder(teams: DraftTeam[], ligaId: string, accessToken: string): Observable<boolean> {
+  private createDraftOrder(teams: DraftTeam[], ligaId: string): Observable<boolean> {
     // Sortear a ordem inicial
     const teamIds = teams.map(team => team.id);
     this.shuffleArray(teamIds);
@@ -673,16 +606,12 @@ export class DraftService {
     }
 
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.ORDEM_DRAFT_RANGE}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
-    const headers = {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    };
-
+    
     const body = {
       values: draftOrderEntries
     };
 
-    return this.http.post<any>(url, body, { headers }).pipe(
+    return this.makeAuthorizedRequest<any>('post', url, body).pipe(
       map(() => {
         // Limpar o cache da ordem do draft
         this.storageService.remove(this.DRAFT_ORDER_KEY);
@@ -715,18 +644,9 @@ export class DraftService {
   }
 
   private getAssignedPlayerIds(): Observable<string[]> {
-    const accessToken = this.authService.currentUser?.accessToken;
-    if (!accessToken) {
-      return throwError(() => new Error('Usuário não autenticado'));
-    }
-
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.ESCOLHAS_DRAFT_RANGE}`;
-    const headers = {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    };
-
-    return this.http.get<any>(url, { headers }).pipe(
+    
+    return this.makeAuthorizedRequest<any>('get', url).pipe(
       map(response => {
         if (!response.values || response.values.length <= 1) {
           return [];
@@ -742,11 +662,6 @@ export class DraftService {
 
   // Atribuir jogador a um time
   assignPlayerToTeam(teamId: string, athleteId: string, round: number, orderIndex: number): Observable<boolean> {
-    const accessToken = this.authService.currentUser?.accessToken;
-    if (!accessToken) {
-      return throwError(() => new Error('Usuário não autenticado'));
-    }
-
     // Gerar ID único para a escolha
     const choiceId = this.generateUniqueId();
     const now = new Date().toISOString();
@@ -754,11 +669,7 @@ export class DraftService {
 
     // Primeiro adicionar a escolha na planilha EscolhasDraft
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.ESCOLHAS_DRAFT_RANGE}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
-    const headers = {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    };
-
+    
     const body = {
       values: [
         [
@@ -773,24 +684,20 @@ export class DraftService {
       ]
     };
 
-    return this.http.post<any>(url, body, { headers }).pipe(
+    return this.makeAuthorizedRequest<any>('post', url, body).pipe(
       switchMap(() => {
         // Agora adicionar o atleta ao elenco do time na planilha ElencosTimes
-        return this.addAthleteToTeamRoster(teamId, athleteId, accessToken);
+        return this.addAthleteToTeamRoster(teamId, athleteId);
       })
     );
   }
 
-  private addAthleteToTeamRoster(teamId: string, athleteId: string, accessToken: string): Observable<boolean> {
+  private addAthleteToTeamRoster(teamId: string, athleteId: string): Observable<boolean> {
     const registroId = this.generateUniqueId();
     const now = new Date().toISOString();
 
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.ELENCOS_TIMES_RANGE}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
-    const headers = {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    };
-
+    
     const body = {
       values: [
         [
@@ -804,7 +711,7 @@ export class DraftService {
       ]
     };
 
-    return this.http.post<any>(url, body, { headers }).pipe(
+    return this.makeAuthorizedRequest<any>('post', url, body).pipe(
       map(() => {
         // Limpar cache dos times
         this.storageService.remove(this.DRAFT_TEAMS_KEY);
@@ -815,19 +722,10 @@ export class DraftService {
 
   // Avançar para próxima escolha
   advanceDraft(): Observable<DraftOrderData> {
-    const accessToken = this.authService.currentUser?.accessToken;
-    if (!accessToken) {
-      return throwError(() => new Error('Usuário não autenticado'));
-    }
-
     // Buscar a configuração atual
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.CONFIG_DRAFT_RANGE}`;
-    const headers = {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    };
-
-    return this.http.get<any>(url, { headers }).pipe(
+    return this.makeAuthorizedRequest<any>('get',
+      `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.CONFIG_DRAFT_RANGE}`
+    ).pipe(
       switchMap(response => {
         if (!response.values || response.values.length <= 1) {
           return throwError(() => new Error('Configuração do draft não encontrada'));
@@ -858,7 +756,7 @@ export class DraftService {
           ]
         };
 
-        return this.http.put(updateUrl, updateBody, { headers }).pipe(
+        return this.makeAuthorizedRequest<any>('put', updateUrl, updateBody).pipe(
           switchMap(() => {
             // Limpar cache
             this.storageService.remove(this.DRAFT_ORDER_KEY);
@@ -873,19 +771,10 @@ export class DraftService {
 
   // Finalizar o Draft
   finishDraft(): Observable<boolean> {
-    const accessToken = this.authService.currentUser?.accessToken;
-    if (!accessToken) {
-      return throwError(() => new Error('Usuário não autenticado'));
-    }
-
     // Buscar a configuração atual
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.CONFIG_DRAFT_RANGE}`;
-    const headers = {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    };
-
-    return this.http.get<any>(url, { headers }).pipe(
+    return this.makeAuthorizedRequest<any>('get',
+      `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.CONFIG_DRAFT_RANGE}`
+    ).pipe(
       switchMap(response => {
         if (!response.values || response.values.length <= 1) {
           return throwError(() => new Error('Configuração do draft não encontrada'));
@@ -911,7 +800,7 @@ export class DraftService {
           ]
         };
 
-        return this.http.post(updateUrl, updateBody, { headers }).pipe(
+        return this.makeAuthorizedRequest<any>('post', updateUrl, updateBody).pipe(
           map(() => {
             // Atualizar status local
             this.storageService.set(this.DRAFT_STATUS_KEY, 'finished' as DraftStatus);
@@ -930,26 +819,17 @@ export class DraftService {
 
   // Reiniciar o Draft (resetar para o estado inicial)
   resetDraft(): Observable<boolean> {
-    const accessToken = this.authService.currentUser?.accessToken;
-    if (!accessToken) {
-      return throwError(() => new Error('Usuário não autenticado'));
-    }
-
     // 1. Limpar a tabela de escolhas do draft
-    return this.clearSheetData(this.ESCOLHAS_DRAFT_RANGE, accessToken).pipe(
+    return this.clearSheetData(this.ESCOLHAS_DRAFT_RANGE).pipe(
       // 2. Limpar os elencos dos times
-      switchMap(() => this.clearSheetData(this.ELENCOS_TIMES_RANGE, accessToken)),
+      switchMap(() => this.clearSheetData(this.ELENCOS_TIMES_RANGE)),
       // 3. Definir o status do draft como "Não iniciado"
       switchMap(() => {
         const ligaId = '1'; // Default liga id
         const now = new Date().toISOString();
         
         const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.CONFIG_DRAFT_RANGE}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
-        const headers = {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        };
-
+        
         const body = {
           values: [
             [
@@ -962,10 +842,10 @@ export class DraftService {
           ]
         };
 
-        return this.http.post<any>(url, body, { headers });
+        return this.makeAuthorizedRequest<any>('post', url, body);
       }),
       // 4. Limpar a ordem do draft
-      switchMap(() => this.clearSheetData(this.ORDEM_DRAFT_RANGE, accessToken)),
+      switchMap(() => this.clearSheetData(this.ORDEM_DRAFT_RANGE)),
       // 5. Limpar os caches
       map(() => {
         this.storageService.set(this.DRAFT_STATUS_KEY, 'not_started' as DraftStatus);
@@ -978,18 +858,14 @@ export class DraftService {
   }
 
   // Método auxiliar para limpar dados de uma planilha (mantendo cabeçalho)
-  private clearSheetData(range: string, accessToken: string): Observable<any> {
+  private clearSheetData(range: string): Observable<any> {
     // Extrair o nome da planilha do intervalo
     const sheetName = range.split('!')[0];
     
     // Primeiro obtemos os dados para ver o cabeçalho
     const getUrl = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${range}`;
-    const headers = {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    };
-
-    return this.http.get<any>(getUrl, { headers }).pipe(
+    
+    return this.makeAuthorizedRequest<any>('get', getUrl).pipe(
       switchMap(response => {
         if (!response.values || response.values.length <= 1) {
           // Não há dados ou apenas o cabeçalho, então nada para limpar
@@ -1000,19 +876,17 @@ export class DraftService {
         const header = response.values[0];
         
         // Limpar todas as células exceto o cabeçalho
-        // Nós usamos o mesmo intervalo, mas na implementação da Google Sheets API,
-        // ela só atualizará as linhas que fornecemos, mantendo as demais
         const clearUrl = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${range}:clear`;
         
-        return this.http.post<any>(clearUrl, {}, { headers }).pipe(
-          // Reescrever o cabeçalho - CORREÇÃO DA URL
+        return this.makeAuthorizedRequest<any>('post', clearUrl).pipe(
+          // Reescrever o cabeçalho
           switchMap(() => {
             const headerUrl = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${sheetName}!A1:Z1?valueInputOption=USER_ENTERED`;
             const headerBody = {
               values: [header]
             };
             
-            return this.http.put<any>(headerUrl, headerBody, { headers });
+            return this.makeAuthorizedRequest<any>('put', headerUrl, headerBody);
           })
         );
       })

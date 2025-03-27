@@ -26,6 +26,8 @@ import { PlayerSearchComponent } from './components/player-search/player-search.
 import { TeamListComponent } from './components/team-list/team-list.component';
 import { ConfirmationDialogComponent } from './components/confirmation-dialog/confirmation-dialog.component';
 import { PlayerSelectionDialogComponent } from './components/player-selection-dialog/player-selection-dialog.component';
+import { NotificationService } from '../../core/services/notification.service';
+import { Router } from '@angular/router';
 
 import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './models/draft.model';
 
@@ -372,6 +374,8 @@ export class DraftComponent implements OnInit, OnDestroy {
   private draftService = inject(DraftService);
   private dialog = inject(MatDialog);
   private snackBar = inject(MatSnackBar);
+  private notificationService = inject(NotificationService);
+  private router = inject(Router);
   
   // Estado da página
   isAdmin = false;
@@ -396,6 +400,10 @@ export class DraftComponent implements OnInit, OnDestroy {
   remainingSeconds = 0;
   private timerInterval: any;
   private destroy$ = new Subject<void>();
+
+  constructor() {
+    this.loadDraftData();
+  }
 
   ngOnInit(): void {
     // Verificar se o usuário é admin
@@ -525,8 +533,8 @@ export class DraftComponent implements OnInit, OnDestroy {
   }
 
   startDraft(): void {
-    if (this.teams.length < 2) {
-      this.snackBar.open('É necessário pelo menos 2 times para iniciar o draft', 'Fechar', { duration: 3000 });
+    if (!this.isAdmin) {
+      this.notificationService.error('Apenas administradores podem iniciar o draft');
       return;
     }
 
@@ -535,13 +543,12 @@ export class DraftComponent implements OnInit, OnDestroy {
       takeUntil(this.destroy$)
     ).subscribe({
       next: () => {
-        this.draftStatus = 'in_progress';
-        // Recarregar os dados do draft
-        this.loadDraftDetails();
-        this.snackBar.open('Draft iniciado com sucesso!', 'Fechar', { duration: 3000 });
+        this.notificationService.success('Draft iniciado com sucesso');
+        this.loadDraftData();
       },
       error: (error) => {
-        this.handleError('Erro ao iniciar o draft', error);
+        console.error('Erro ao iniciar draft:', error);
+        this.notificationService.error('Erro ao iniciar draft');
         this.isLoading = false;
       }
     });
@@ -566,6 +573,11 @@ export class DraftComponent implements OnInit, OnDestroy {
   }
 
   finishDraft(): void {
+    if (!this.isAdmin) {
+      this.notificationService.error('Apenas administradores podem encerrar o draft');
+      return;
+    }
+
     if (!this.canFinishDraft()) {
       this.snackBar.open('Todos os times precisam ter 18 jogadores, incluindo 11 titulares, 6 reservas e 1 técnico', 'Fechar', { duration: 5000 });
       return;
@@ -576,14 +588,15 @@ export class DraftComponent implements OnInit, OnDestroy {
       takeUntil(this.destroy$)
     ).subscribe({
       next: () => {
+        this.notificationService.success('Draft encerrado com sucesso');
         this.draftStatus = 'finished';
         this.currentTeam = null;
         this.clearTimerInterval();
-        this.snackBar.open('Draft finalizado com sucesso!', 'Fechar', { duration: 3000 });
-        this.isLoading = false;
+        this.loadDraftData();
       },
       error: (error) => {
-        this.handleError('Erro ao finalizar draft', error);
+        console.error('Erro ao encerrar draft:', error);
+        this.notificationService.error('Erro ao encerrar draft');
         this.isLoading = false;
       }
     });
@@ -773,6 +786,11 @@ export class DraftComponent implements OnInit, OnDestroy {
   }
 
   resetDraft(): void {
+    if (!this.isAdmin) {
+      this.notificationService.error('Apenas administradores podem reiniciar o draft');
+      return;
+    }
+
     this.isLoading = true;
     this.clearTimerInterval();
     
@@ -780,7 +798,7 @@ export class DraftComponent implements OnInit, OnDestroy {
       takeUntil(this.destroy$)
     ).subscribe({
       next: () => {
-        this.snackBar.open('Draft reiniciado com sucesso', 'Fechar', { duration: 3000 });
+        this.notificationService.success('Draft reiniciado com sucesso');
         this.draftStatus = 'not_started';
         this.currentTeam = null;
         this.currentRound = 0;
@@ -791,7 +809,8 @@ export class DraftComponent implements OnInit, OnDestroy {
         this.loadTeams();
       },
       error: (error) => {
-        this.handleError('Erro ao reiniciar o draft', error);
+        console.error('Erro ao reiniciar o draft:', error);
+        this.notificationService.error('Erro ao reiniciar o draft');
         this.isLoading = false;
       }
     });
