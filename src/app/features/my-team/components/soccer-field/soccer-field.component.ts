@@ -22,10 +22,17 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
         <div class="field-lines">
           <div class="center-circle"></div>
           <div class="center-line"></div>
-          <div class="penalty-area top"></div>
-          <div class="penalty-area bottom"></div>
+          <div class="center-spot"></div>
+          <div class="penalty-area top">
+            <div class="penalty-spot"></div>
+          </div>
+          <div class="penalty-area bottom">
+            <div class="penalty-spot"></div>
+          </div>
           <div class="goal-area top"></div>
           <div class="goal-area bottom"></div>
+          <div class="arc-container top"></div>
+          <div class="arc-container bottom"></div>
         </div>
         
         <!-- Jogadores da escalação -->
@@ -108,8 +115,8 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: 20%;
-      height: 20%;
+      width: 120px;
+      height: 120px;
       border: 2px solid rgba(255, 255, 255, 0.7);
       border-radius: 50%;
     }
@@ -123,24 +130,111 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
       background-color: rgba(255, 255, 255, 0.7);
     }
     
+    .center-spot {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 6px;
+      height: 6px;
+      background-color: rgba(255, 255, 255, 0.9);
+      border-radius: 50%;
+      z-index: 2;
+    }
+    
     .penalty-area {
       position: absolute;
       left: 15%;
       width: 70%;
       height: 20%;
       border: 2px solid rgba(255, 255, 255, 0.7);
+      border-top: none;
+      border-bottom: none;
     }
     
     .penalty-area.top {
       top: 0;
-      border-bottom: none;
-      border-top: none;
+    }
+    
+    .penalty-area.top::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background-color: rgba(255, 255, 255, 0.7);
     }
     
     .penalty-area.bottom {
       bottom: 0;
-      border-bottom: none;
-      border-top: none;
+    }
+    
+    .penalty-area.bottom::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background-color: rgba(255, 255, 255, 0.7);
+    }
+    
+    /* Nova abordagem para os arcos */
+    .arc-container {
+      position: absolute;
+      left: 50%;
+      width: 140px;
+      height: 120px;
+      transform: translateX(-50%);
+      overflow: hidden;
+    }
+    
+    .arc-container.top {
+      top: 20%;
+      height: 50px; /* Aumentado mais alguns pixels */
+    }
+    
+    .arc-container.bottom {
+      bottom: 20%;
+      height: 50px; /* Aumentado mais alguns pixels */
+    }
+    
+    .arc-container::before {
+      content: '';
+      position: absolute;
+      width: 120px;
+      height: 120px;
+      border: 2px solid rgba(255, 255, 255, 0.7);
+      border-radius: 50%;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    
+    .arc-container.top::before {
+      top: -76px; /* Ajustado para cima mais alguns pixels */
+    }
+    
+    .arc-container.bottom::before {
+      bottom: -76px; /* Ajustado para cima mais alguns pixels */
+    }
+    
+    .penalty-spot {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      background-color: rgba(255, 255, 255, 0.9);
+      border-radius: 50%;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    
+    .penalty-area.top .penalty-spot {
+      bottom: 25%;
+    }
+    
+    .penalty-area.bottom .penalty-spot {
+      top: 25%;
     }
     
     .goal-area {
@@ -149,18 +243,36 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
       width: 40%;
       height: 8%;
       border: 2px solid rgba(255, 255, 255, 0.7);
+      border-top: none;
+      border-bottom: none;
     }
     
     .goal-area.top {
       top: 0;
-      border-bottom: none;
-      border-top: none;
+    }
+    
+    .goal-area.top::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background-color: rgba(255, 255, 255, 0.7);
     }
     
     .goal-area.bottom {
       bottom: 0;
-      border-bottom: none;
-      border-top: none;
+    }
+    
+    .goal-area.bottom::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background-color: rgba(255, 255, 255, 0.7);
     }
     
     .players-container {
