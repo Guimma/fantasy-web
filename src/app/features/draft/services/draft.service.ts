@@ -136,13 +136,10 @@ export class DraftService {
 
   // Obter o status atual do Draft
   getDraftStatus(): Observable<DraftStatus> {
-    // Verificar primeiro se temos o status em cache
-    const cachedStatus = this.storageService.get<DraftStatus>(this.DRAFT_STATUS_KEY);
-    if (cachedStatus) {
-      return of(cachedStatus);
-    }
+    // Remover o cache para garantir que sempre obtemos o status mais recente do servidor
+    this.storageService.remove(this.DRAFT_STATUS_KEY);
 
-    // Se não temos em cache, buscar da planilha usando o sistema de renovação de token
+    // Buscar da planilha usando o sistema de renovação de token
     return this.makeAuthorizedRequest<any>('get',
       `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.CONFIG_DRAFT_RANGE}`
     ).pipe(
@@ -151,6 +148,7 @@ export class DraftService {
         if (!response.values || response.values.length <= 1) {
           const status: DraftStatus = 'not_started';
           this.storageService.set(this.DRAFT_STATUS_KEY, status);
+          console.log('Draft não iniciado (sem dados)', status);
           return status;
         }
 
@@ -159,7 +157,12 @@ export class DraftService {
         const latestConfig = configs[configs.length - 1];
         
         // O status está na posição 3 (índice 3)
-        const status = this.mapStatusFromSheet(latestConfig[3] || 'Agendado');
+        const sheetStatus = latestConfig[3] || 'Agendado';
+        const status = this.mapStatusFromSheet(sheetStatus);
+        
+        console.log('Status bruto recebido da planilha:', sheetStatus);
+        console.log('Status mapeado:', status);
+        
         this.storageService.set(this.DRAFT_STATUS_KEY, status);
         return status;
       })

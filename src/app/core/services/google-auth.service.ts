@@ -788,49 +788,161 @@ export class GoogleAuthService {
         return;
       }
 
+      // Se não há usuário logado, não tente renovar o token
+      if (!this.currentUser) {
+        console.error('GoogleAuthService: Tentativa de renovar token sem usuário autenticado');
+        observer.error('Usuário não autenticado');
+        return;
+      }
+
       try {
+        // Verificar se o SDK do Google está carregado
         if (!(window as any).google) {
+          console.log('GoogleAuthService: SDK do Google ainda não carregado, aguardando...');
+          // Tentar novamente após um curto delay
           setTimeout(() => {
+            console.log('GoogleAuthService: Tentando renovar token novamente...');
             this.refreshToken().subscribe({
               next: token => observer.next(token),
-              error: err => observer.error(err)
+              error: err => observer.error(err),
+              complete: () => observer.complete()
             });
-          }, 500);
+          }, 1000);
           return;
         }
 
-        const client = (window as any).google.accounts.oauth2.initTokenClient({
-          client_id: '657981591726-mc1spr0mmt6bjmgf011pasulclmbjg8o.apps.googleusercontent.com',
-          scope: 'email profile https://www.googleapis.com/auth/spreadsheets',
-          callback: (tokenResponse: any) => {
-            if (tokenResponse && tokenResponse.access_token) {
-              // Atualizar o token no usuário atual
-              const currentUser = this.currentUser;
-              if (currentUser) {
-                currentUser.accessToken = tokenResponse.access_token;
-                this.userSubject.next(currentUser);
-                this.storageService.set(this.USER_KEY, currentUser);
-                console.log('Token renovado com sucesso');
-                observer.next(tokenResponse.access_token);
-                observer.complete();
+        console.log('GoogleAuthService: Iniciando processo de renovação de token...');
+        
+        try {
+          // Usar o método initCodeClient em vez de initTokenClient para evitar problemas de popup
+          // Isso requererá interação do usuário, mas dentro do contexto da página atual
+          const client = (window as any).google.accounts.oauth2.initTokenClient({
+            client_id: '657981591726-mc1spr0mmt6bjmgf011pasulclmbjg8o.apps.googleusercontent.com',
+            scope: 'email profile https://www.googleapis.com/auth/spreadsheets',
+            prompt: 'consent', // Sempre solicitar consentimento para evitar problemas de autenticação silenciosa
+            callback: (tokenResponse: any) => {
+              if (tokenResponse && tokenResponse.access_token) {
+                console.log('GoogleAuthService: Token renovado com sucesso');
+                
+                // Atualizar o token no usuário atual
+                const currentUser = this.currentUser;
+                if (currentUser) {
+                  currentUser.accessToken = tokenResponse.access_token;
+                  this.userSubject.next(currentUser);
+                  this.storageService.set(this.USER_KEY, currentUser);
+                  this.storageService.set(this.TOKEN_KEY, tokenResponse.access_token);
+                  
+                  console.log('GoogleAuthService: Token atualizado no storage');
+                  observer.next(tokenResponse.access_token);
+                  observer.complete();
+                } else {
+                  const error = 'Usuário não encontrado para atualizar token';
+                  console.error('GoogleAuthService: ' + error);
+                  observer.error(error);
+                }
               } else {
-                observer.error('Usuário não encontrado para atualizar token');
+                const error = 'Resposta de token inválida';
+                console.error('GoogleAuthService: ' + error, tokenResponse);
+                observer.error(error);
               }
-            } else {
-              observer.error('Falha ao renovar o token');
+            },
+            error_callback: (error: any) => {
+              console.error('GoogleAuthService: Erro no callback do Google OAuth:', error);
+              
+              // Se o erro for relacionado a popup, informar o usuário
+              if (error && error.toString().includes('popup')) {
+                console.error('GoogleAuthService: Erro de popup bloqueado');
+                observer.error(new Error('POPUP_BLOCKED'));
+                return;
+              }
+              
+              // Se o usuário cancelou ou negou acesso, precisamos enviá-lo para fazer login novamente
+              if (error && (error.type === 'userCanceled' || error.type === 'accessDenied')) {
+                console.log('GoogleAuthService: Usuário cancelou ou negou acesso, redirecionando para login');
+                this.signOut();
+              }
+              
+              observer.error(error || 'Erro desconhecido ao renovar token');
             }
-          },
-          error_callback: (error: any) => {
-            console.error('Erro ao renovar token:', error);
-            observer.error(error);
-          }
-        });
+          });
 
-        client.requestAccessToken();
-      } catch (error) {
-        console.error('Exceção ao renovar token:', error);
-        observer.error(error);
+          console.log('GoogleAuthService: Solicitando novo token...');
+          // Aqui, em vez de chamar requestAccessToken diretamente,
+          // verificamos se estamos dentro de uma interação do usuário
+          let hasUserInteraction = false;
+          try {
+            // Uma heurística para verificar se estamos dentro de um evento do usuário
+            hasUserInteraction = !!(document.hasFocus() && 
+                                  ((window as any).event || 
+                                   document.activeElement !== document.body));
+          } catch (e) {
+            console.warn('GoogleAuthService: Não foi possível verificar interação do usuário', e);
+          }
+
+          if (hasUserInteraction) {
+            // Estamos em um contexto de evento do usuário, podemos chamar diretamente
+            client.requestAccessToken();
+          } else {
+            // Não estamos em um contexto de evento do usuário, vamos informar
+            console.warn('GoogleAuthService: Não foi possível renovar token automaticamente, requer interação do usuário');
+            observer.error(new Error('USER_INTERACTION_REQUIRED'));
+          }
+        } catch (sdkError) {
+          console.error('GoogleAuthService: Erro ao inicializar o token client do Google:', sdkError);
+          observer.error(sdkError);
+        }
+      } catch (globalError) {
+        console.error('GoogleAuthService: Exceção global ao renovar token:', globalError);
+        observer.error(globalError);
       }
     });
+  }
+
+  // Verificar se o token atual é válido
+  checkTokenValidity(): Observable<boolean> {
+    if (!this.currentUser?.accessToken) {
+      console.log('GoogleAuthService: Nenhum token disponível');
+      return of(false);
+    }
+
+    // Fazer uma chamada de teste para verificar a validade do token
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}?fields=properties.title`;
+    const headers = { 
+      'Authorization': `Bearer ${this.currentUser.accessToken}`,
+      'Content-Type': 'application/json'
+    };
+
+    return this.http.get(url, { headers }).pipe(
+      map(() => {
+        console.log('GoogleAuthService: Token validado com sucesso');
+        return true;
+      }),
+      catchError(error => {
+        console.error('GoogleAuthService: Erro na validação do token', error);
+        
+        // Se o erro for 401, o token expirou
+        if (error.status === 401) {
+          console.log('GoogleAuthService: Token expirado, tentando renovar...');
+          
+          // Tentar renovar o token
+          return this.refreshToken().pipe(
+            map(() => {
+              console.log('GoogleAuthService: Token renovado e validado');
+              return true;
+            }),
+            catchError(refreshError => {
+              console.error('GoogleAuthService: Falha ao renovar token', refreshError);
+              
+              // Se não conseguir renovar, limpar sessão e redirecionar
+              this.signOut();
+              return of(false);
+            })
+          );
+        }
+        
+        // Para outros erros, não renovar o token
+        return of(false);
+      })
+    );
   }
 } 

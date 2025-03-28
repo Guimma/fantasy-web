@@ -402,7 +402,7 @@ export class DraftComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
 
   constructor() {
-    this.loadDraftData();
+    // Não carregar dados aqui para evitar carregamentos duplicados
   }
 
   ngOnInit(): void {
@@ -420,6 +420,7 @@ export class DraftComponent implements OnInit, OnDestroy {
     this.isAdmin = this.authService.isAdmin();
     
     if (this.isAdmin) {
+      // Garantir que carregamos o draft apenas uma vez
       this.loadDraftData();
     }
   }
@@ -427,12 +428,23 @@ export class DraftComponent implements OnInit, OnDestroy {
   loadDraftData(): void {
     this.isLoading = true;
     
+    // Limpar o timer atual para evitar que continue rodando indevidamente
+    this.clearTimerInterval();
+    
+    // Debug log
+    console.log('Iniciando carregamento de dados do draft');
+    
     // Primeiro carregamos o status do draft
     this.draftService.getDraftStatus().pipe(
       takeUntil(this.destroy$)
     ).subscribe({
       next: (status) => {
+        // Debug log
+        console.log('Status do draft recebido do servidor:', status);
         this.draftStatus = status;
+        
+        // Debug log
+        console.log('Status do draft após atribuição:', this.draftStatus);
         
         // Carregar times
         this.loadTeams();
@@ -445,17 +457,23 @@ export class DraftComponent implements OnInit, OnDestroy {
   }
 
   private loadTeams(): void {
+    console.log('Carregando times com status do draft:', this.draftStatus);
+    
     // Se o draft estiver finalizado, carregamos o histórico das escolhas
     if (this.draftStatus === 'finished') {
+      console.log('Draft finalizado, carregando histórico dos times');
+      
       // Primeiro carregamos a configuração para obter o ID do draft
       this.draftService.getDraftConfig().pipe(
         takeUntil(this.destroy$),
         switchMap(config => {
+          console.log('Configuração do draft carregada, ID:', config.draftId);
           // Usando a nova função para carregar times a partir do histórico das escolhas
           return this.draftService.getDraftTeamHistory(config.draftId);
         })
       ).subscribe({
         next: (teams) => {
+          console.log('Histórico de times carregado com sucesso, times:', teams.length);
           this.teams = teams;
           
           // Carregar jogadores disponíveis
@@ -470,20 +488,28 @@ export class DraftComponent implements OnInit, OnDestroy {
         }
       });
     } else {
+      console.log('Draft não finalizado, carregando times normalmente');
+      
       // Para draft não finalizado, usar o comportamento original
       this.draftService.getTeams().pipe(
         takeUntil(this.destroy$)
       ).subscribe({
         next: (teams) => {
+          console.log('Times carregados com sucesso, times:', teams.length);
           this.teams = teams;
           
           // Carregar jogadores disponíveis
           this.loadAvailablePlayers();
           
           // Se o draft estiver em andamento, carregar detalhes adicionais
-          if (this.draftStatus !== 'not_started') {
+          if (this.draftStatus === 'in_progress') {
+            console.log('Draft em andamento, carregando detalhes');
+            this.loadDraftDetails();
+          } else if (this.draftStatus === 'finished') {
+            console.log('Draft finalizado, carregando detalhes sem iniciar timer');
             this.loadDraftDetails();
           } else {
+            console.log('Draft não iniciado, carregando apenas configuração');
             this.loadDraftConfig();
           }
         },
@@ -509,6 +535,15 @@ export class DraftComponent implements OnInit, OnDestroy {
   }
 
   private loadDraftDetails(): void {
+    console.log('Carregando detalhes do draft, status atual:', this.draftStatus);
+    
+    // Se o draft já estiver finalizado, não precisamos iniciar o timer
+    if (this.draftStatus === 'finished') {
+      console.log('Draft já finalizado, não iniciando timer');
+      this.loadDraftConfig();
+      return;
+    }
+    
     this.draftService.getDraftOrder().pipe(
       takeUntil(this.destroy$)
     ).subscribe({
@@ -517,16 +552,39 @@ export class DraftComponent implements OnInit, OnDestroy {
         this.currentRound = orderData.currentRound;
         this.currentOrderIndex = orderData.currentIndex;
         
+        console.log('Ordem do draft carregada, round:', this.currentRound, 'index:', this.currentOrderIndex);
+        
         // Atualizar o time atual
         this.updateCurrentTeam();
         
         // Carregar configuração
         this.loadDraftConfig();
         
-        // Iniciar timer se estiver em andamento
-        if (this.draftStatus === 'in_progress') {
-          this.startTimer();
-        }
+        // Atualização: Verificar novamente o status atual do draft antes de iniciar o timer
+        console.log('Verificando status atual do draft antes de iniciar timer');
+        
+        this.draftService.getDraftStatus().pipe(
+          takeUntil(this.destroy$)
+        ).subscribe({
+          next: (currentStatus) => {
+            console.log('Status atual do draft recebido:', currentStatus);
+            
+            // Importante: atualizar o status com o valor mais recente
+            this.draftStatus = currentStatus;
+            console.log('Status do draft após atualização:', this.draftStatus);
+            
+            // Iniciar timer apenas se estiver realmente em andamento
+            if (this.draftStatus === 'in_progress') {
+              console.log('Iniciando timer pois draft está em andamento');
+              this.startTimer();
+            } else {
+              console.log('Não iniciando timer pois draft não está em andamento');
+            }
+          },
+          error: (error) => {
+            this.handleError('Erro ao verificar status atual do draft', error);
+          }
+        });
       },
       error: (error) => {
         this.handleError('Erro ao carregar detalhes do draft', error);
@@ -716,7 +774,7 @@ export class DraftComponent implements OnInit, OnDestroy {
           // Atualizar o time atual
           this.updateCurrentTeam();
           
-          // Reiniciar o timer
+          // Reiniciar o timer apenas se o draft ainda estiver em andamento
           if (this.draftStatus === 'in_progress') {
             this.startTimer();
           }
@@ -724,6 +782,8 @@ export class DraftComponent implements OnInit, OnDestroy {
           // Se chegamos ao fim do draft
           this.currentTeam = null;
           this.draftStatus = 'finished';
+          // Não iniciar timer pois o draft está finalizado
+          this.clearTimerInterval();
         }
         
         this.isLoading = false;
@@ -736,6 +796,11 @@ export class DraftComponent implements OnInit, OnDestroy {
   }
 
   startTimer(): void {
+    // Não iniciar o timer se o draft estiver finalizado
+    if (this.draftStatus === 'finished') {
+      return;
+    }
+    
     this.clearTimerInterval();
     this.remainingSeconds = this.draftConfig.pickTime;
     
@@ -789,7 +854,12 @@ export class DraftComponent implements OnInit, OnDestroy {
   }
 
   get draftStatusClass(): string {
-    return `draft-status-${this.draftStatus}`;
+    switch (this.draftStatus) {
+      case 'not_started': return 'draft-status-not-started';
+      case 'in_progress': return 'draft-status-in-progress';
+      case 'finished': return 'draft-status-finished';
+      default: return 'draft-status-not-started';
+    }
   }
 
   confirmResetDraft(): void {
