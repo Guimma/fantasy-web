@@ -5,6 +5,24 @@
 // Include the common styles for Angular Material
 @include mat.core();
 
+// Configuração de tipografia personalizada para DM Sans
+$custom-typography: mat.define-typography-config(
+  $font-family: '"DM Sans", sans-serif',
+  $headline-1: mat.define-typography-level(96px, 96px, 300, $letter-spacing: -0.015em),
+  $headline-2: mat.define-typography-level(60px, 60px, 300, $letter-spacing: -0.005em),
+  $headline-3: mat.define-typography-level(48px, 50px, 400),
+  $headline-4: mat.define-typography-level(34px, 40px, 400),
+  $headline-5: mat.define-typography-level(24px, 32px, 400),
+  $headline-6: mat.define-typography-level(20px, 28px, 500),
+  $subtitle-1: mat.define-typography-level(16px, 24px, 400),
+  $subtitle-2: mat.define-typography-level(14px, 22px, 500),
+  $body-1: mat.define-typography-level(16px, 24px, 400),
+  $body-2: mat.define-typography-level(14px, 20px, 400),
+  $caption: mat.define-typography-level(12px, 20px, 400),
+  $button: mat.define-typography-level(14px, 14px, 500),
+  $overline: mat.define-typography-level(10px, 16px, 400, $letter-spacing: 0.15em)
+);
+
 // Define the palettes for your theme using the Material Design palettes available in palette.scss
 // (imported above). For each palette, you can optionally specify a default, lighter, and darker
 // hue. Available color palettes: https://material.io/design/color/
@@ -20,31 +38,51 @@ $theme: mat.define-light-theme((
     accent: $accent,
     warn: $warn,
   ),
-  typography: mat.define-typography-config(),
+  typography: $custom-typography,
   density: 0,
 ));
 
 // Include theme styles for core and each component used in your app.
 @include mat.all-component-themes($theme);
 
-// Font classes
-.dm-sans {
-  font-family: "DM Sans", sans-serif;
-  font-optical-sizing: auto;
-  font-style: normal;
+// Definir variáveis CSS globais
+:root {
+  --primary-color: #3f51b5;
+  --primary-light: #f5f7ff;
+  --secondary-color: #ff4081;
+  --background-color: #f0f2f5;
+  --card-background: white;
+  --disabled-background: rgba(0,0,0,0.03);
+  --text-primary: #333;
+  --text-secondary: #666;
+  --border-radius: 8px;
+  --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
+  --shadow-md: 0 4px 8px rgba(0,0,0,0.12);
+  --shadow-lg: 0 8px 16px rgba(0,0,0,0.16);
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
 }
 
-.dm-sans-italic {
+// Aplica tipografia para componentes específicos
+@include mat.button-typography($custom-typography);
+@include mat.card-typography($custom-typography);
+@include mat.form-field-typography($custom-typography);
+@include mat.menu-typography($custom-typography);
+@include mat.toolbar-typography($custom-typography);
+
+// Definir a fonte global para toda a aplicação
+* {
   font-family: "DM Sans", sans-serif;
-  font-optical-sizing: auto;
-  font-style: italic;
 }
 
-// Global styles
+// Manter configurações globais originais mas garantir que a fonte seja aplicada
 html, body {
   height: 100%;
   margin: 0;
-  font-family: "DM Sans", sans-serif;
+  font-family: "DM Sans", sans-serif !important;
   font-optical-sizing: auto;
   font-style: normal;
 }
@@ -98,4 +136,30 @@ body {
 .mat-mdc-dialog-title {
   margin: 0;
   padding: 24px 24px 0;
+}
+
+/* Estilos para os itens do menu hamburguer */
+.mat-mdc-menu-content {
+  .mat-mdc-menu-item {
+    color: #3f51b5 !important;
+    
+    .mdc-list-item__primary-text {
+      color: #3f51b5 !important;
+    }
+
+    .mat-icon {
+      color: #3f51b5 !important;
+    }
+    
+    // Aplicar para todos os spans que são filhos diretos
+    > span {
+      color: #3f51b5 !important;
+    }
+  }
+}
+
+// Adicional para forçar a cor em qualquer texto dentro do menu
+.primary-menu-item span,
+.mat-mdc-menu-panel .mat-mdc-menu-item span {
+  color: #3f51b5 !important;
 }

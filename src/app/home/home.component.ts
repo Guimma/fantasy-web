@@ -10,6 +10,8 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatRippleModule } from '@angular/material/core';
+import { HeaderComponent } from '../core/components/header/header.component';
+import { FooterComponent } from '../core/components/footer/footer.component';
 
 @Component({
   selector: 'app-home',
@@ -24,148 +26,90 @@ import { MatRippleModule } from '@angular/material/core';
     MatMenuModule,
     MatTooltipModule,
     MatDividerModule,
-    MatRippleModule
+    MatRippleModule,
+    HeaderComponent,
+    FooterComponent
   ],
   template: `
-    <div class="home-container">
-      <div class="header">
-        <div class="logo-container">
-          <mat-icon class="logo-icon">sports_soccer</mat-icon>
-          <h1>Fantasy Futebol</h1>
-        </div>
-        
-        <div class="user-menu">
-          <div class="user-button-container" [matMenuTriggerFor]="userMenu">
-            <div class="user-avatar" *ngIf="!currentUser?.picture">
-              {{ getUserInitials() }}
-            </div>
-            <img *ngIf="currentUser?.picture" [src]="currentUser.picture" class="user-photo" alt="Foto do usuário">
-            <div class="user-name-container">
-              <span class="user-name">{{ currentUser?.name || 'Usuário' }}</span>
-            </div>
-            <mat-icon>arrow_drop_down</mat-icon>
+    <div class="app-container">
+      <app-header></app-header>
+      
+      <main class="main-content">
+        <div class="home-container">
+          <div class="team-info" *ngIf="userTeam">
+            <h2><mat-icon>shield</mat-icon> Seu Time: {{ userTeam.name }}</h2>
           </div>
-          <mat-menu #userMenu="matMenu" xPosition="before">
-            <div class="menu-header">
-              <div class="menu-user-info">
-                <div class="menu-avatar" *ngIf="!currentUser?.picture">
-                  {{ getUserInitials() }}
-                </div>
-                <img *ngIf="currentUser?.picture" [src]="currentUser.picture" class="menu-photo" alt="Foto do usuário">
-                <div class="menu-user-details">
-                  <div class="menu-user-name">{{ currentUser?.name }}</div>
-                  <div class="menu-user-email">{{ currentUser?.email }}</div>
-                  <div class="menu-user-role">
-                    <mat-icon class="role-icon">admin_panel_settings</mat-icon>
-                    <span>{{ currentUser?.role === 'admin' ? 'Administrador' : 'Usuário' }}</span>
-                  </div>
-                </div>
+          
+          <div class="card-container">
+            <mat-card class="dashboard-card clickable-card" matRipple [routerLink]="['/home']">
+              <div class="card-icon-container">
+                <mat-icon class="card-icon">home</mat-icon>
               </div>
-            </div>
-            <mat-divider></mat-divider>
-            <button mat-menu-item (click)="logout()">
-              <mat-icon>exit_to_app</mat-icon>
-              <span>Sair</span>
-            </button>
-          </mat-menu>
+              <mat-card-header>
+                <mat-card-title>Home</mat-card-title>
+              </mat-card-header>
+              <mat-card-content>
+                <p>Bem-vindo ao Fantasy Futebol! Esta é a página inicial.</p>
+                <p *ngIf="userTeam">Time: {{ userTeam.name }}</p>
+              </mat-card-content>
+            </mat-card>
+
+            <mat-card class="dashboard-card disabled-card" matTooltip="Em breve">
+              <div class="card-icon-container">
+                <mat-icon class="card-icon">shopping_cart</mat-icon>
+              </div>
+              <mat-card-header>
+                <mat-card-title>Mercado</mat-card-title>
+              </mat-card-header>
+              <mat-card-content>
+                <p>Compre e venda jogadores para o seu time.</p>
+                <div class="coming-soon-label">Em breve</div>
+              </mat-card-content>
+            </mat-card>
+
+            <mat-card class="dashboard-card disabled-card" matTooltip="Em breve">
+              <div class="card-icon-container">
+                <mat-icon class="card-icon">format_list_numbered</mat-icon>
+              </div>
+              <mat-card-header>
+                <mat-card-title>Escalação</mat-card-title>
+              </mat-card-header>
+              <mat-card-content>
+                <p>Configure a escalação do seu time para a próxima rodada.</p>
+                <div class="coming-soon-label">Em breve</div>
+              </mat-card-content>
+            </mat-card>
+
+            <mat-card class="dashboard-card disabled-card" matTooltip="Em breve">
+              <div class="card-icon-container">
+                <mat-icon class="card-icon">emoji_events</mat-icon>
+              </div>
+              <mat-card-header>
+                <mat-card-title>Liga</mat-card-title>
+              </mat-card-header>
+              <mat-card-content>
+                <p>Veja sua posição na liga e acompanhe os times concorrentes.</p>
+                <div class="coming-soon-label">Em breve</div>
+              </mat-card-content>
+            </mat-card>
+
+            <mat-card class="dashboard-card clickable-card" matRipple [routerLink]="['/draft']" *ngIf="isAdmin">
+              <div class="card-icon-container">
+                <mat-icon class="card-icon">view_list</mat-icon>
+              </div>
+              <mat-card-header>
+                <mat-card-title>Draft</mat-card-title>
+              </mat-card-header>
+              <mat-card-content>
+                <p>Configure e gerencie o draft da temporada.</p>
+                <p>Esta funcionalidade é exclusiva para administradores.</p>
+              </mat-card-content>
+            </mat-card>
+          </div>
         </div>
-      </div>
+      </main>
 
-      <div class="team-info" *ngIf="userTeam">
-        <h2><mat-icon>shield</mat-icon> Seu Time: {{ userTeam.name }}</h2>
-      </div>
-      
-      <div class="tabs">
-        <div class="tab-container">
-          <a class="tab" routerLink="/home" routerLinkActive="active-tab" [routerLinkActiveOptions]="{exact: true}">
-            <mat-icon>home</mat-icon>
-            <span>Home</span>
-          </a>
-          <a class="tab" routerLink="/mercado" routerLinkActive="active-tab">
-            <mat-icon>shopping_cart</mat-icon>
-            <span>Mercado</span>
-          </a>
-          <a class="tab" routerLink="/escalacao" routerLinkActive="active-tab">
-            <mat-icon>format_list_numbered</mat-icon>
-            <span>Escalação</span>
-          </a>
-          <a class="tab" routerLink="/liga" routerLinkActive="active-tab">
-            <mat-icon>emoji_events</mat-icon>
-            <span>Liga</span>
-          </a>
-          <a class="tab" routerLink="/draft" routerLinkActive="active-tab" *ngIf="isAdmin">
-            <mat-icon>view_list</mat-icon>
-            <span>Draft</span>
-          </a>
-        </div>
-      </div>
-      
-      <div class="card-container">
-        <mat-card class="dashboard-card clickable-card" matRipple [routerLink]="['/home']">
-          <div class="card-icon-container">
-            <mat-icon class="card-icon">home</mat-icon>
-          </div>
-          <mat-card-header>
-            <mat-card-title>Home</mat-card-title>
-          </mat-card-header>
-          <mat-card-content>
-            <p>Bem-vindo ao Fantasy Futebol! Esta é a página inicial.</p>
-            <p *ngIf="userTeam">Time: {{ userTeam.name }}</p>
-          </mat-card-content>
-        </mat-card>
-
-        <mat-card class="dashboard-card disabled-card" matTooltip="Em breve">
-          <div class="card-icon-container">
-            <mat-icon class="card-icon">shopping_cart</mat-icon>
-          </div>
-          <mat-card-header>
-            <mat-card-title>Mercado</mat-card-title>
-          </mat-card-header>
-          <mat-card-content>
-            <p>Compre e venda jogadores para o seu time.</p>
-            <div class="coming-soon-label">Em breve</div>
-          </mat-card-content>
-        </mat-card>
-
-        <mat-card class="dashboard-card disabled-card" matTooltip="Em breve">
-          <div class="card-icon-container">
-            <mat-icon class="card-icon">format_list_numbered</mat-icon>
-          </div>
-          <mat-card-header>
-            <mat-card-title>Escalação</mat-card-title>
-          </mat-card-header>
-          <mat-card-content>
-            <p>Configure a escalação do seu time para a próxima rodada.</p>
-            <div class="coming-soon-label">Em breve</div>
-          </mat-card-content>
-        </mat-card>
-
-        <mat-card class="dashboard-card disabled-card" matTooltip="Em breve">
-          <div class="card-icon-container">
-            <mat-icon class="card-icon">emoji_events</mat-icon>
-          </div>
-          <mat-card-header>
-            <mat-card-title>Liga</mat-card-title>
-          </mat-card-header>
-          <mat-card-content>
-            <p>Veja sua posição na liga e acompanhe os times concorrentes.</p>
-            <div class="coming-soon-label">Em breve</div>
-          </mat-card-content>
-        </mat-card>
-
-        <mat-card class="dashboard-card clickable-card" matRipple [routerLink]="['/draft']" *ngIf="isAdmin">
-          <div class="card-icon-container">
-            <mat-icon class="card-icon">view_list</mat-icon>
-          </div>
-          <mat-card-header>
-            <mat-card-title>Draft</mat-card-title>
-          </mat-card-header>
-          <mat-card-content>
-            <p>Configure e gerencie o draft da temporada.</p>
-            <p>Esta funcionalidade é exclusiva para administradores.</p>
-          </mat-card-content>
-        </mat-card>
-      </div>
+      <app-footer></app-footer>
     </div>
   `,
   styles: `
@@ -189,206 +133,26 @@ import { MatRippleModule } from '@angular/material/core';
       --spacing-xl: 32px;
     }
 
+    .app-container {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background-color: var(--background-color);
+    }
+
+    .main-content {
+      flex: 1;
+      padding-top: 96px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
     .home-container {
       width: 100%;
       max-width: 1200px;
       margin: 0 auto;
       padding: var(--spacing-md);
-      background-color: var(--background-color);
-      min-height: 100vh;
       box-sizing: border-box;
-      overflow-x: hidden;
-    }
-
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: var(--spacing-lg);
-      padding-bottom: var(--spacing-md);
-      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-      width: 100%;
-      box-sizing: border-box;
-    }
-
-    .logo-container {
-      display: flex;
-      align-items: center;
-      gap: var(--spacing-sm);
-    }
-
-    .logo-icon {
-      font-size: 36px;
-      width: 36px;
-      height: 36px;
-      color: var(--primary-color);
-    }
-
-    h1 {
-      margin: 0;
-      font-size: 28px;
-      color: var(--primary-color);
-      font-weight: 600;
-    }
-
-    .user-menu {
-      position: relative;
-    }
-    
-    .user-button-container {
-      display: flex;
-      align-items: center;
-      gap: var(--spacing-sm);
-      padding: 6px 12px 6px 6px;
-      border-radius: 24px;
-      border: 1px solid rgba(0, 0, 0, 0.08);
-      background-color: white;
-      transition: background-color 0.2s, box-shadow 0.2s;
-      min-width: 0;
-      max-width: 100%;
-      height: auto;
-      cursor: pointer;
-      box-sizing: border-box;
-    }
-    
-    .user-button-container:hover {
-      background-color: #f5f5f5;
-      box-shadow: var(--shadow-sm);
-    }
-
-    .user-avatar, .menu-avatar {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      background-color: var(--primary-color);
-      color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 500;
-    }
-
-    .menu-avatar {
-      width: 40px;
-      height: 40px;
-      font-size: 16px;
-    }
-
-    .user-photo, .menu-photo {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      object-fit: cover;
-    }
-
-    .menu-photo {
-      width: 40px;
-      height: 40px;
-    }
-
-    .user-name-container {
-      flex: 1;
-      overflow: hidden;
-      padding-left: 8px;
-      text-align: left;
-    }
-
-    .user-name {
-      display: block;
-      width: 100%;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      font-size: 14px;
-      line-height: normal;
-      text-align: left;
-    }
-
-    .menu-header {
-      padding: 16px;
-      min-width: 280px;
-      max-width: 100%;
-      box-sizing: border-box;
-    }
-
-    .menu-user-info {
-      display: flex;
-      align-items: flex-start;
-      gap: 16px;
-    }
-
-    .menu-user-details {
-      display: flex;
-      flex-direction: column;
-      flex: 1;
-      min-width: 0;
-      gap: 4px;
-    }
-
-    .menu-user-name {
-      font-weight: 500;
-      font-size: 16px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .menu-user-email {
-      font-size: 14px;
-      color: rgba(0, 0, 0, 0.6);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .menu-user-role {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 13px;
-      color: #3f51b5;
-      margin-top: 4px;
-    }
-
-    .role-icon {
-      font-size: 16px;
-      width: 16px;
-      height: 16px;
-    }
-
-    .menu-avatar {
-      width: 48px;
-      height: 48px;
-      font-size: 18px;
-      flex-shrink: 0;
-      background-color: #3f51b5;
-      color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 50%;
-    }
-
-    .menu-photo {
-      width: 48px;
-      height: 48px;
-      flex-shrink: 0;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 2px solid #f5f7ff;
-    }
-
-    mat-divider {
-      margin: 4px 0;
-    }
-
-    button[mat-menu-item] {
-      height: 40px;
-      line-height: 40px;
-    }
-
-    button[mat-menu-item] mat-icon {
-      margin-right: 16px;
     }
 
     .team-info {
@@ -405,47 +169,6 @@ import { MatRippleModule } from '@angular/material/core';
       align-items: center;
       gap: var(--spacing-sm);
       color: var(--primary-color);
-    }
-    
-    .tabs {
-      margin-bottom: var(--spacing-lg);
-    }
-    
-    .tab-container {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--spacing-sm);
-      background-color: white;
-      padding: var(--spacing-sm);
-      border-radius: var(--border-radius);
-      box-shadow: var(--shadow-sm);
-      width: 100%;
-      box-sizing: border-box;
-    }
-    
-    .tab {
-      padding: var(--spacing-md) var(--spacing-lg);
-      text-decoration: none;
-      color: var(--text-secondary);
-      border-radius: var(--border-radius);
-      transition: all 0.3s;
-      display: flex;
-      align-items: center;
-      gap: var(--spacing-sm);
-    }
-    
-    .tab:hover {
-      background-color: #f5f5f5;
-      color: var(--text-primary);
-    }
-    
-    .active-tab {
-      background-color: var(--primary-color);
-      color: white;
-    }
-
-    .active-tab mat-icon {
-      color: white;
     }
     
     .card-container {
@@ -518,29 +241,9 @@ import { MatRippleModule } from '@angular/material/core';
         padding: var(--spacing-sm);
       }
 
-      .user-button-container {
-        padding: 6px;
-      }
-
-      .user-name {
-        display: none;
-      }
-
-      .menu-header {
-        min-width: 240px;
-      }
-
       .card-container {
         grid-template-columns: 1fr;
         gap: var(--spacing-md);
-      }
-
-      .tab-container {
-        padding: var(--spacing-xs);
-      }
-
-      .tab {
-        padding: var(--spacing-sm) var(--spacing-md);
       }
     }
 

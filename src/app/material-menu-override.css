@@ -1,0 +1,27 @@
+/* Estilos para corrigir a cor do texto nos menus do Material */
+
+/* Força cor azul em todos os itens do menu */
+.mat-mdc-menu-panel .mat-mdc-menu-content .mat-mdc-menu-item {
+  color: #3f51b5 !important;
+}
+
+/* Força cor azul em todos os ícones dentro do menu */
+.mat-mdc-menu-panel .mat-mdc-menu-content .mat-mdc-menu-item .mat-icon {
+  color: #3f51b5 !important;
+}
+
+/* Força cor azul em todos os textos dentro do menu */
+.mat-mdc-menu-panel .mat-mdc-menu-content .mat-mdc-menu-item span,
+.mat-mdc-menu-panel .mat-mdc-menu-content .mat-mdc-menu-item .mdc-list-item__primary-text {
+  color: #3f51b5 !important;
+}
+
+/* Estilos para quando o cursor passar por cima do item */
+.mat-mdc-menu-panel .mat-mdc-menu-content .mat-mdc-menu-item:hover {
+  background-color: #f5f7ff !important;
+}
+
+/* Estilos para itens ativos */
+.mat-mdc-menu-panel .mat-mdc-menu-content .mat-mdc-menu-item.active-link {
+  background-color: #f5f7ff !important;
+} 
