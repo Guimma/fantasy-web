@@ -40,11 +40,11 @@ import { Router } from '@angular/router';
               <mat-icon color="primary">shopping_cart</mat-icon>
               <span>Mercado</span>
             </a>
-            <a mat-menu-item routerLink="/escalacao" routerLinkActive="active-link" class="primary-menu-item">
-              <mat-icon color="primary">format_list_numbered</mat-icon>
-              <span>Escalação</span>
+            <a mat-menu-item routerLink="/meu-time" routerLinkActive="active-link" class="primary-menu-item">
+              <mat-icon color="primary">sports_soccer</mat-icon>
+              <span>Meu Time</span>
             </a>
-            <a mat-menu-item routerLink="/liga" routerLinkActive="active-link" class="primary-menu-item">
+            <a mat-menu-item routerLink="/times" routerLinkActive="active-link" class="primary-menu-item">
               <mat-icon color="primary">emoji_events</mat-icon>
               <span>Liga</span>
             </a>

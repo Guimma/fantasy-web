@@ -34,8 +34,8 @@ import { NgIf } from '@angular/common';
           <nav class="footer-nav">
             <a routerLink="/home">Home</a>
             <a routerLink="/mercado">Mercado</a>
-            <a routerLink="/escalacao">Escalação</a>
-            <a routerLink="/liga">Liga</a>
+            <a routerLink="/meu-time">Meu Time</a>
+            <a routerLink="/ligas">Liga</a>
             <a routerLink="/draft">Draft</a>
           </nav>
         </div>

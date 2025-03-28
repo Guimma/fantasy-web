@@ -28,6 +28,8 @@ import { ConfirmationDialogComponent } from './components/confirmation-dialog/co
 import { PlayerSelectionDialogComponent } from './components/player-selection-dialog/player-selection-dialog.component';
 import { NotificationService } from '../../core/services/notification.service';
 import { Router } from '@angular/router';
+import { HeaderComponent } from '../../core/components/header/header.component';
+import { FooterComponent } from '../../core/components/footer/footer.component';
 
 import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './models/draft.model';
 
@@ -56,119 +58,135 @@ import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './mode
     MatTabsModule,
     CurrentTeamComponent,
     PlayerSearchComponent,
-    TeamListComponent
+    TeamListComponent,
+    HeaderComponent,
+    FooterComponent
   ],
   template: `
-    <!-- Admin access check -->
-    <div *ngIf="!isAdmin" class="access-denied">
-      <mat-card>
-        <mat-card-content>
-          <mat-icon color="warn">lock</mat-icon>
-          <h2>Acesso Restrito</h2>
-          <p>Apenas administradores podem acessar o sistema de Draft.</p>
-        </mat-card-content>
-      </mat-card>
-    </div>
+    <div class="app-container">
+      <app-header></app-header>
+      
+      <div class="main-content">
+        <!-- Admin access check -->
+        <div *ngIf="!isAdmin" class="access-denied">
+          <mat-card>
+            <mat-card-content>
+              <mat-icon color="warn">lock</mat-icon>
+              <h2>Acesso Restrito</h2>
+              <p>Apenas administradores podem acessar o sistema de Draft.</p>
+            </mat-card-content>
+          </mat-card>
+        </div>
 
-    <!-- Draft Interface -->
-    <div *ngIf="isAdmin" class="draft-container">
-      <!-- Header Section -->
-      <header class="draft-header">
-        <div class="draft-title">
-          <h1>Sistema de Draft</h1>
-          <div class="draft-status-chip" [ngClass]="draftStatusClass">
-            {{ draftStatusText }}
+        <!-- Draft Interface -->
+        <div *ngIf="isAdmin" class="draft-container">
+          <!-- Header Section -->
+          <header class="draft-header">
+            <div class="draft-title">
+              <h1>Sistema de Draft</h1>
+              <div class="draft-status-chip" [ngClass]="draftStatusClass">
+                {{ draftStatusText }}
+              </div>
+            </div>
+            <!-- Timer centralized in header if draft is in progress -->
+            <div *ngIf="draftStatus === 'in_progress'" class="timer">
+              <div [ngClass]="{'timer-warning': remainingSeconds < 20, 'timer-expired': remainingSeconds <= 0}">
+                {{ remainingSeconds <= 0 ? 'Tempo esgotado!' : 'Tempo restante: ' + formatTime(remainingSeconds) }}
+              </div>
+            </div>
+            <div class="draft-controls">
+              <button 
+                mat-raised-button 
+                color="primary" 
+                *ngIf="draftStatus === 'not_started'"
+                [disabled]="isLoading || teams.length < 2"
+                (click)="startDraft()">
+                <mat-icon>play_arrow</mat-icon> Iniciar Draft
+              </button>
+              <button 
+                mat-raised-button 
+                color="warn" 
+                *ngIf="draftStatus === 'in_progress'"
+                [disabled]="isLoading || !canFinishDraft()"
+                (click)="confirmFinishDraft()">
+                <mat-icon>done_all</mat-icon> Finalizar Draft
+              </button>
+              <button 
+                mat-raised-button 
+                color="warn"
+                *ngIf="draftStatus !== 'not_started'"
+                [disabled]="isLoading" 
+                (click)="confirmResetDraft()"
+                class="reset-button">
+                <mat-icon>restart_alt</mat-icon> Reiniciar Draft
+              </button>
+            </div>
+          </header>
+
+          <!-- Main Content Area -->
+          <div class="draft-content">
+            <!-- Left Column: Current Team -->
+            <section class="column current-team-column">
+              <app-current-team 
+                [team]="currentTeam" 
+                [draftConfig]="draftConfig"
+                [currentRound]="currentRound"
+                [isLoading]="isLoading">
+              </app-current-team>
+            </section>
+
+            <!-- Middle Column: Player Search -->
+            <section class="column player-search-column">
+              <app-player-search
+                [availablePlayers]="availablePlayers"
+                [isCurrentTeamTurn]="isCurrentTeamTurn()"
+                [isLoading]="isLoading"
+                [draftStatus]="draftStatus"
+                (playerSelected)="selectPlayer($event)">
+              </app-player-search>
+            </section>
+
+            <!-- Right Column: Team List -->
+            <section class="column team-list-column">
+              <app-team-list
+                [teams]="teams"
+                [currentTeamId]="currentTeam?.id"
+                [draftOrder]="draftOrder"
+                [currentOrderIndex]="currentOrderIndex"
+                [draftStatus]="draftStatus"
+                [isLoading]="isLoading">
+              </app-team-list>
+            </section>
+          </div>
+
+          <!-- Loading Overlay -->
+          <div *ngIf="isLoading" class="loading-overlay">
+            <mat-spinner diameter="50"></mat-spinner>
+            <p>Carregando...</p>
           </div>
         </div>
-        <!-- Timer centralized in header if draft is in progress -->
-        <div *ngIf="draftStatus === 'in_progress'" class="timer">
-          <div [ngClass]="{'timer-warning': remainingSeconds < 20, 'timer-expired': remainingSeconds <= 0}">
-            {{ remainingSeconds <= 0 ? 'Tempo esgotado!' : 'Tempo restante: ' + formatTime(remainingSeconds) }}
-          </div>
-        </div>
-        <div class="draft-controls">
-          <button 
-            mat-raised-button 
-            color="primary" 
-            *ngIf="draftStatus === 'not_started'"
-            [disabled]="isLoading || teams.length < 2"
-            (click)="startDraft()">
-            <mat-icon>play_arrow</mat-icon> Iniciar Draft
-          </button>
-          <button 
-            mat-raised-button 
-            color="warn" 
-            *ngIf="draftStatus === 'in_progress'"
-            [disabled]="isLoading || !canFinishDraft()"
-            (click)="confirmFinishDraft()">
-            <mat-icon>done_all</mat-icon> Finalizar Draft
-          </button>
-          <button 
-            mat-raised-button 
-            color="warn"
-            *ngIf="draftStatus !== 'not_started'"
-            [disabled]="isLoading" 
-            (click)="confirmResetDraft()"
-            class="reset-button">
-            <mat-icon>restart_alt</mat-icon> Reiniciar Draft
-          </button>
-        </div>
-      </header>
-
-      <!-- Main Content Area -->
-      <div class="draft-content">
-        <!-- Left Column: Current Team -->
-        <section class="column current-team-column">
-          <app-current-team 
-            [team]="currentTeam" 
-            [draftConfig]="draftConfig"
-            [currentRound]="currentRound"
-            [isLoading]="isLoading">
-          </app-current-team>
-        </section>
-
-        <!-- Middle Column: Player Search -->
-        <section class="column player-search-column">
-          <app-player-search
-            [availablePlayers]="availablePlayers"
-            [isCurrentTeamTurn]="isCurrentTeamTurn()"
-            [isLoading]="isLoading"
-            [draftStatus]="draftStatus"
-            (playerSelected)="selectPlayer($event)">
-          </app-player-search>
-        </section>
-
-        <!-- Right Column: Team List -->
-        <section class="column team-list-column">
-          <app-team-list
-            [teams]="teams"
-            [currentTeamId]="currentTeam?.id"
-            [draftOrder]="draftOrder"
-            [currentOrderIndex]="currentOrderIndex"
-            [draftStatus]="draftStatus"
-            [isLoading]="isLoading">
-          </app-team-list>
-        </section>
       </div>
-
-      <!-- Loading Overlay -->
-      <div *ngIf="isLoading" class="loading-overlay">
-        <mat-spinner diameter="50"></mat-spinner>
-        <p>Carregando...</p>
-      </div>
+      
+      <app-footer></app-footer>
     </div>
   `,
   styles: `
-    :host {
-      display: block;
-      height: 100%;
+    .app-container {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      background-color: var(--background-color);
+    }
+    
+    .main-content {
+      flex: 1;
+      padding: 120px 20px 20px 20px;
     }
 
     .access-denied {
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100%;
       
       mat-card {
         max-width: 400px;
@@ -192,10 +210,10 @@ import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './mode
     .draft-container {
       display: flex;
       flex-direction: column;
-      height: 100%;
       padding: 16px;
       position: relative;
       background-color: #f5f5f5;
+      border-radius: 8px;
     }
 
     .draft-header {
@@ -305,6 +323,8 @@ import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './mode
       overflow: hidden;
       padding: 0 16px 16px;
       background-color: #f0f2f5;
+      height: calc(100vh - 300px);
+      min-height: 600px;
     }
 
     .column {
@@ -312,22 +332,29 @@ import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './mode
       background: white;
       border-radius: 8px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      overflow: auto;
       display: flex;
       flex-direction: column;
       border: 1px solid rgba(0,0,0,0.06);
+      max-height: 100%;
+      min-height: 0;
+      overflow: hidden;
     }
 
     .current-team-column {
       flex: 1;
+      overflow: auto;
     }
 
     .player-search-column {
       flex: 1.2;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
     }
 
     .team-list-column {
       flex: 0.8;
+      overflow: auto;
     }
 
     .loading-overlay {
@@ -347,10 +374,17 @@ import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './mode
     @media (max-width: 1200px) {
       .draft-content {
         flex-direction: column;
+        height: auto;
       }
       
       .column {
-        max-height: 500px;
+        min-height: 500px;
+        max-height: none;
+        margin-bottom: 20px;
+      }
+      
+      .column:last-child {
+        margin-bottom: 0;
       }
     }
 

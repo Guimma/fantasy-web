@@ -67,16 +67,15 @@ import { FooterComponent } from '../core/components/footer/footer.component';
               </mat-card-content>
             </mat-card>
 
-            <mat-card class="dashboard-card disabled-card" matTooltip="Em breve">
+            <mat-card class="dashboard-card clickable-card" matRipple [routerLink]="['/meu-time']">
               <div class="card-icon-container">
-                <mat-icon class="card-icon">format_list_numbered</mat-icon>
+                <mat-icon class="card-icon">sports_soccer</mat-icon>
               </div>
               <mat-card-header>
-                <mat-card-title>Escalação</mat-card-title>
+                <mat-card-title>Meu Time</mat-card-title>
               </mat-card-header>
               <mat-card-content>
                 <p>Configure a escalação do seu time para a próxima rodada.</p>
-                <div class="coming-soon-label">Em breve</div>
               </mat-card-content>
             </mat-card>
 

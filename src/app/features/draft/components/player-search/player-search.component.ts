@@ -121,7 +121,7 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
         <!-- Players List -->
         <div class="players-list" *ngIf="filteredPlayers.length > 0">
           <div *ngFor="let player of filteredPlayers" class="player-item">
-            <mat-card>
+            <mat-card class="player-card">
               <mat-card-content>
                 <div class="player-card-content">
                   <div class="player-main-info">
@@ -165,34 +165,39 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
   `,
   styles: `
     .player-search-container {
-      padding: 16px;
-      height: 100%;
       display: flex;
       flex-direction: column;
-      overflow-y: auto;
+      height: 100%;
+      overflow: hidden;
     }
 
     .section-title {
-      margin: 0 0 16px 0;
+      margin: 0;
+      padding: 16px 16px 8px 16px;
       color: #3f51b5;
       font-size: 20px;
       font-weight: 500;
+      flex-shrink: 0;
     }
 
     .loading {
       display: flex;
       justify-content: center;
       padding: 24px;
+      flex-shrink: 0;
     }
 
     .search-content {
       display: flex;
       flex-direction: column;
-      flex: 1;
+      height: 100%;
+      overflow: hidden;
     }
 
     .search-filters {
-      margin-bottom: 16px;
+      padding: 0 16px;
+      margin-bottom: 8px;
+      flex-shrink: 0;
     }
 
     .search-input {
@@ -249,48 +254,49 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
       font-size: 16px;
       width: 16px;
       height: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
     }
 
     mat-divider {
-      margin-bottom: 16px;
+      margin: 0;
+      flex-shrink: 0;
     }
 
     .results-count {
-      margin-bottom: 16px;
       font-size: 14px;
-      color: #757575;
+      color: #666;
+      padding: 8px 16px 4px 16px;
+      flex-shrink: 0;
     }
 
     .players-list {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
       overflow-y: auto;
+      padding: 4px 16px 16px 16px;
+      flex: 1 1 auto;
+      min-height: 0;
     }
 
     .player-item {
-      border-radius: 4px;
+      margin-bottom: 12px;
     }
 
-    mat-card {
-      padding: 0;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.12) !important;
-      border: 1px solid rgba(0,0,0,0.08);
-      transition: transform 0.2s, box-shadow 0.2s;
-      background-color: white;
-    }
-
-    mat-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.16) !important;
-    }
-
-    mat-card-content {
-      padding: 12px !important; /* Override Material padding */
+    .player-item:last-child {
       margin-bottom: 0;
+    }
+    
+    .player-card {
+      padding: 0;
+      border: 1px solid rgba(0,0,0,0.08);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .player-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15) !important;
+    }
+    
+    mat-card-content {
+      padding: 12px !important;
     }
 
     .player-card-content {
@@ -306,20 +312,39 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
     }
 
     .team-logo {
-      width: 36px;
-      height: 36px;
+      width: 40px;
+      height: 40px;
       display: flex;
       align-items: center;
       justify-content: center;
+      background-color: transparent;
       overflow: hidden;
+      flex-shrink: 0;
     }
 
     .team-logo-img {
-      width: 100%;
-      height: 100%;
+      max-width: 100%;
+      max-height: 100%;
       object-fit: contain;
     }
-    
+
+    .player-details {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .player-name {
+      font-weight: 500;
+      color: #333;
+    }
+
+    .player-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
     .player-position {
       display: inline-block;
       padding: 3px 6px;
@@ -331,76 +356,75 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
       background-color: #aaa;
       text-transform: uppercase;
       box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-      margin-right: 4px;
     }
 
     .player-position[data-position="GOL"], 
-    .player-position[data-position="Goleiro"] {
+    .player-position[data-position="G"] {
       background-color: #ffeb3b;
       color: #000;
     }
 
-    .player-position[data-position="LAT"], 
-    .player-position[data-position="Lateral"] {
-      background-color: #4caf50;
-      color: white;
-    }
-
     .player-position[data-position="ZAG"], 
-    .player-position[data-position="Zagueiro"] {
+    .player-position[data-position="Z"] {
       background-color: #2196f3;
       color: white;
     }
 
+    .player-position[data-position="LAT"], 
+    .player-position[data-position="L"] {
+      background-color: #4caf50;
+      color: white;
+    }
+
     .player-position[data-position="MEI"], 
-    .player-position[data-position="Meia"] {
+    .player-position[data-position="M"] {
       background-color: #ff9800;
       color: #000;
     }
 
     .player-position[data-position="ATA"], 
-    .player-position[data-position="Atacante"] {
+    .player-position[data-position="A"] {
       background-color: #f44336;
       color: white;
     }
 
     .player-position[data-position="TEC"], 
-    .player-position[data-position="Técnico"],
-    .player-position[data-position="Tecnico"] {
+    .player-position[data-position="T"] {
       background-color: #607d8b;
       color: white;
     }
 
-    .player-position[data-position="SEM"] {
-      background-color: #9e9e9e;
-      color: white;
+    .player-price {
+      font-size: 12px;
+      color: #666;
     }
 
-    .player-details {
+    .player-actions {
       display: flex;
-      flex-direction: column;
-    }
-
-    .player-name {
-      font-weight: 500;
-      margin-bottom: 4px;
-    }
-
-    .player-meta {
-      display: flex;
-      gap: 8px;
       align-items: center;
-      font-size: 13px;
-      color: #757575;
+      flex-shrink: 0;
+    }
+    
+    .player-actions button {
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      width: 36px;
+      height: 36px;
+      line-height: 36px;
+    }
+    
+    .player-actions mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
     }
 
     .empty-results {
-      padding: 32px 16px;
-      text-align: center;
       display: flex;
       flex-direction: column;
       align-items: center;
-      color: #757575;
+      padding: 32px 16px;
+      color: #666;
+      text-align: center;
     }
 
     .empty-results mat-icon {
@@ -408,6 +432,7 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
       height: 48px;
       width: 48px;
       margin-bottom: 16px;
+      color: #bbbbbb;
     }
 
     @media (max-width: 768px) {
@@ -415,24 +440,11 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
         flex-direction: column;
         gap: 0;
       }
-    }
 
-    .player-actions {
-      display: flex;
-      align-items: center;
-    }
-
-    .player-actions button {
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-      width: 36px;
-      height: 36px;
-      line-height: 36px;
-    }
-
-    .player-actions mat-icon {
-      font-size: 20px;
-      width: 20px;
-      height: 20px;
+      .players-list {
+        height: auto;
+        max-height: 400px;
+      }
     }
   `
 })

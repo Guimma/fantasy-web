@@ -1,37 +1,39 @@
 import { NgModule } from '@angular/core';
-import { RouterModule, Routes } from '@angular/router';
+import { Routes, RouterModule } from '@angular/router';
 import { AuthGuard } from './core/auth/auth.guard';
 
 const routes: Routes = [
   {
-    path: 'login',
-    loadChildren: () => import('./features/auth/login/login.module').then(m => m.LoginModule)
-  },
-  {
-    path: 'ligas',
-    loadChildren: () => import('./features/ligas/ligas.module').then(m => m.LigasModule),
+    path: '',
+    loadComponent: () => import('./home/home.component').then(m => m.HomeComponent),
     canActivate: [AuthGuard]
   },
   {
+    path: 'login',
+    loadComponent: () => import('./core/auth/login.component').then(m => m.LoginComponent)
+  },
+  {
     path: 'times',
-    loadChildren: () => import('./features/times/times.module').then(m => m.TimesModule),
+    loadComponent: () => import('./features/times').then(m => m.TimesComponent),
     canActivate: [AuthGuard]
   },
   {
     path: 'draft',
-    loadChildren: () => import('./features/draft/draft.module').then(m => m.DraftModule),
-    canActivate: [AuthGuard]
+    loadComponent: () => import('./features/draft/draft.component').then(m => m.DraftComponent),
+    canActivate: [AuthGuard],
+    data: { roles: ['admin'] }
   },
   {
     path: 'mercado',
-    loadChildren: () => import('./features/mercado/mercado.module').then(m => m.MercadoModule),
+    loadComponent: () => import('./features/mercado').then(m => m.MercadoComponent),
     canActivate: [AuthGuard]
   },
   {
-    path: '',
-    redirectTo: 'ligas',
-    pathMatch: 'full'
-  }
+    path: 'meu-time',
+    loadChildren: () => import('./features/my-team/my-team.module').then(m => m.MyTeamModule),
+    canActivate: [AuthGuard]
+  },
+  { path: '**', redirectTo: '' }
 ];
 
 @NgModule({
