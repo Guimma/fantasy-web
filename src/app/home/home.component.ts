@@ -36,10 +36,10 @@ import { MatRippleModule } from '@angular/material/core';
         
         <div class="user-menu">
           <div class="user-button-container" [matMenuTriggerFor]="userMenu">
-            <div class="user-avatar" *ngIf="!currentUser?.photoURL">
+            <div class="user-avatar" *ngIf="!currentUser?.picture">
               {{ getUserInitials() }}
             </div>
-            <img *ngIf="currentUser?.photoURL" [src]="currentUser.photoURL" class="user-photo" alt="Foto do usuário">
+            <img *ngIf="currentUser?.picture" [src]="currentUser.picture" class="user-photo" alt="Foto do usuário">
             <div class="user-name-container">
               <span class="user-name">{{ currentUser?.name || 'Usuário' }}</span>
             </div>
@@ -48,13 +48,17 @@ import { MatRippleModule } from '@angular/material/core';
           <mat-menu #userMenu="matMenu" xPosition="before">
             <div class="menu-header">
               <div class="menu-user-info">
-                <div class="menu-avatar" *ngIf="!currentUser?.photoURL">
+                <div class="menu-avatar" *ngIf="!currentUser?.picture">
                   {{ getUserInitials() }}
                 </div>
-                <img *ngIf="currentUser?.photoURL" [src]="currentUser.photoURL" class="menu-photo" alt="Foto do usuário">
+                <img *ngIf="currentUser?.picture" [src]="currentUser.picture" class="menu-photo" alt="Foto do usuário">
                 <div class="menu-user-details">
                   <div class="menu-user-name">{{ currentUser?.name }}</div>
                   <div class="menu-user-email">{{ currentUser?.email }}</div>
+                  <div class="menu-user-role">
+                    <mat-icon class="role-icon">admin_panel_settings</mat-icon>
+                    <span>{{ currentUser?.role === 'admin' ? 'Administrador' : 'Usuário' }}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -186,11 +190,14 @@ import { MatRippleModule } from '@angular/material/core';
     }
 
     .home-container {
+      width: 100%;
       max-width: 1200px;
       margin: 0 auto;
-      padding: var(--spacing-xl);
+      padding: var(--spacing-md);
       background-color: var(--background-color);
       min-height: 100vh;
+      box-sizing: border-box;
+      overflow-x: hidden;
     }
 
     .header {
@@ -200,6 +207,8 @@ import { MatRippleModule } from '@angular/material/core';
       margin-bottom: var(--spacing-lg);
       padding-bottom: var(--spacing-md);
       border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+      width: 100%;
+      box-sizing: border-box;
     }
 
     .logo-container {
@@ -235,10 +244,11 @@ import { MatRippleModule } from '@angular/material/core';
       border: 1px solid rgba(0, 0, 0, 0.08);
       background-color: white;
       transition: background-color 0.2s, box-shadow 0.2s;
-      min-width: 200px;
-      max-width: 320px;
+      min-width: 0;
+      max-width: 100%;
       height: auto;
       cursor: pointer;
+      box-sizing: border-box;
     }
     
     .user-button-container:hover {
@@ -295,14 +305,16 @@ import { MatRippleModule } from '@angular/material/core';
     }
 
     .menu-header {
-      padding: var(--spacing-md);
+      padding: 16px;
       min-width: 280px;
+      max-width: 100%;
+      box-sizing: border-box;
     }
 
     .menu-user-info {
       display: flex;
-      align-items: center;
-      gap: var(--spacing-md);
+      align-items: flex-start;
+      gap: 16px;
     }
 
     .menu-user-details {
@@ -310,6 +322,7 @@ import { MatRippleModule } from '@angular/material/core';
       flex-direction: column;
       flex: 1;
       min-width: 0;
+      gap: 4px;
     }
 
     .menu-user-name {
@@ -322,10 +335,60 @@ import { MatRippleModule } from '@angular/material/core';
 
     .menu-user-email {
       font-size: 14px;
-      color: var(--text-secondary);
+      color: rgba(0, 0, 0, 0.6);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    .menu-user-role {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 13px;
+      color: #3f51b5;
+      margin-top: 4px;
+    }
+
+    .role-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+    }
+
+    .menu-avatar {
+      width: 48px;
+      height: 48px;
+      font-size: 18px;
+      flex-shrink: 0;
+      background-color: #3f51b5;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+    }
+
+    .menu-photo {
+      width: 48px;
+      height: 48px;
+      flex-shrink: 0;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #f5f7ff;
+    }
+
+    mat-divider {
+      margin: 4px 0;
+    }
+
+    button[mat-menu-item] {
+      height: 40px;
+      line-height: 40px;
+    }
+
+    button[mat-menu-item] mat-icon {
+      margin-right: 16px;
     }
 
     .team-info {
@@ -356,6 +419,8 @@ import { MatRippleModule } from '@angular/material/core';
       padding: var(--spacing-sm);
       border-radius: var(--border-radius);
       box-shadow: var(--shadow-sm);
+      width: 100%;
+      box-sizing: border-box;
     }
     
     .tab {
@@ -385,8 +450,10 @@ import { MatRippleModule } from '@angular/material/core';
     
     .card-container {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
       gap: var(--spacing-lg);
+      width: 100%;
+      box-sizing: border-box;
     }
     
     .dashboard-card {
@@ -447,24 +514,33 @@ import { MatRippleModule } from '@angular/material/core';
     }
 
     @media (max-width: 768px) {
-      .card-container {
-        grid-template-columns: 1fr;
-      }
-
-      .tab-container {
-        flex-direction: column;
-      }
-
-      .logo-container h1 {
-        font-size: 20px;
+      .home-container {
+        padding: var(--spacing-sm);
       }
 
       .user-button-container {
-        min-width: auto;
+        padding: 6px;
       }
 
       .user-name {
         display: none;
+      }
+
+      .menu-header {
+        min-width: 240px;
+      }
+
+      .card-container {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-md);
+      }
+
+      .tab-container {
+        padding: var(--spacing-xs);
+      }
+
+      .tab {
+        padding: var(--spacing-sm) var(--spacing-md);
       }
     }
 
