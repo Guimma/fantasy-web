@@ -4,6 +4,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MyTeamPlayer } from '../../models/my-team.model';
+import { TeamLogoService } from '../../../../core/services/team-logo.service';
 
 @Component({
   selector: 'app-player-card',
@@ -17,7 +18,7 @@ import { MyTeamPlayer } from '../../models/my-team.model';
   template: `
     <div class="player-card" [ngClass]="{'in-lineup': player.inLineup}">
       <div class="player-image">
-        <img *ngIf="player.foto_url" [src]="player.foto_url" alt="{{ player.apelido }}" class="player-photo">
+        <img *ngIf="player.foto_url" [src]="getPlayerPhoto(player)" alt="{{ player.apelido }}" class="player-photo">
         <div *ngIf="!player.foto_url" class="player-initials">
           {{ getPlayerInitials() }}
         </div>
@@ -26,7 +27,10 @@ import { MyTeamPlayer } from '../../models/my-team.model';
         <div class="player-name">{{ player.apelido }}</div>
         <div class="player-details">
           <span class="player-position">{{ player.posicao }}</span>
-          <span class="player-club">{{ player.clubeAbreviacao }}</span>
+          <span class="player-club">
+            <img [src]="getClubShieldUrl()" alt="{{ player.clubeAbreviacao }}" class="club-shield">
+            {{ player.clubeAbreviacao }}
+          </span>
         </div>
         <div class="player-stats">
           <span class="player-price">C$ {{ player.preco }}</span>
@@ -133,6 +137,18 @@ import { MyTeamPlayer } from '../../models/my-team.model';
       border-radius: 4px;
     }
     
+    .player-club {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .club-shield {
+      width: 16px;
+      height: 16px;
+      object-fit: contain;
+    }
+    
     .player-price {
       font-weight: bold;
       color: #4caf50;
@@ -154,6 +170,8 @@ export class PlayerCardComponent {
   @Output() add = new EventEmitter<MyTeamPlayer>();
   @Output() remove = new EventEmitter<MyTeamPlayer>();
   
+  constructor(private teamLogoService: TeamLogoService) {}
+  
   addPlayer(): void {
     this.add.emit(this.player);
   }
@@ -173,5 +191,26 @@ export class PlayerCardComponent {
     }
     
     return (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase();
+  }
+  
+  getClubShieldUrl(): string {
+    if (!this.player.clubeAbreviacao) {
+      return 'assets/clubs/default.png';
+    }
+    return this.teamLogoService.getTeamLogoPath(this.player.clubeAbreviacao);
+  }
+  
+  getPlayerPhoto(player: MyTeamPlayer): string {
+    // Verificar se a foto é uma URL de clube - se for, usar o serviço de logo
+    if (player.foto_url && (player.foto_url.includes('clube') || player.foto_url.includes('team'))) {
+      return this.teamLogoService.getTeamLogoPath(player.clubeAbreviacao || player.clube);
+    }
+    // Verificar se a URL começa com "assets/clubs"
+    if (player.foto_url && !player.foto_url.startsWith('http')) {
+      if (!player.foto_url.startsWith('assets/')) {
+        return `assets/clubs/${player.foto_url}`;
+      }
+    }
+    return player.foto_url || 'assets/clubs/default.png';
   }
 } 

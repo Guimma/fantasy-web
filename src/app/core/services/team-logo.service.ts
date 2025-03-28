@@ -4,8 +4,8 @@ import { Injectable } from '@angular/core';
   providedIn: 'root'
 })
 export class TeamLogoService {
-  private readonly basePath = 'assets/';
-  private readonly defaultLogo = 'assets/default-team.png';
+  private readonly basePath = 'assets/clubs/';
+  private readonly defaultLogo = 'assets/clubs/default-team.png';
   
   // Mapeamento de possíveis variações de nomes de clubes para suas siglas
   private readonly clubMappings: {[key: string]: string} = {

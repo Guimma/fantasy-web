@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormControl, FormGroup, Validators } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -78,6 +78,7 @@ import { MatIconModule } from '@angular/material/icon';
     .form-actions {
       display: flex;
       gap: var(--spacing-sm);
+      align-items: center;
     }
     
     @media (max-width: 768px) {
@@ -93,7 +94,7 @@ import { MatIconModule } from '@angular/material/icon';
     }
   `
 })
-export class TeamNameEditorComponent {
+export class TeamNameEditorComponent implements OnChanges {
   @Input() teamName: string = '';
   @Input() isEditing: boolean = false;
   @Output() edit = new EventEmitter<boolean>();
@@ -104,8 +105,8 @@ export class TeamNameEditorComponent {
     name: new FormControl('', [Validators.required, Validators.minLength(3)])
   });
   
-  ngOnChanges(): void {
-    if (this.isEditing) {
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['isEditing'] && changes['isEditing'].currentValue === true) {
       this.teamNameForm.setValue({ name: this.teamName || '' });
     }
   }
@@ -125,5 +126,6 @@ export class TeamNameEditorComponent {
     }
     
     this.save.emit(this.teamNameForm.value.name || '');
+    this.edit.emit(false);
   }
 } 

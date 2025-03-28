@@ -87,27 +87,6 @@ export const FORMATIONS: Formation[] = [
   },
   {
     id: 'F003',
-    name: '3-5-2',
-    defenders: 3,
-    midfielders: 5,
-    forwards: 2,
-    positions: [
-      { id: 'GOL1', type: 'GOL', x: 50, y: 95 },
-      { id: 'ZAG1', type: 'ZAG', x: 30, y: 75 },
-      { id: 'ZAG2', type: 'ZAG', x: 50, y: 80 },
-      { id: 'ZAG3', type: 'ZAG', x: 70, y: 75 },
-      { id: 'MEI1', type: 'MEI', x: 15, y: 60 },
-      { id: 'MEI2', type: 'MEI', x: 35, y: 50 },
-      { id: 'MEI3', type: 'MEI', x: 50, y: 55 },
-      { id: 'MEI4', type: 'MEI', x: 65, y: 50 },
-      { id: 'MEI5', type: 'MEI', x: 85, y: 60 },
-      { id: 'ATA1', type: 'ATA', x: 35, y: 25 },
-      { id: 'ATA2', type: 'ATA', x: 65, y: 25 },
-      { id: 'TEC', type: 'TEC', x: 10, y: 5 }
-    ]
-  },
-  {
-    id: 'F004',
     name: '3-4-3',
     defenders: 3,
     midfielders: 4,
@@ -124,27 +103,6 @@ export const FORMATIONS: Formation[] = [
       { id: 'ATA1', type: 'ATA', x: 25, y: 25 },
       { id: 'ATA2', type: 'ATA', x: 50, y: 20 },
       { id: 'ATA3', type: 'ATA', x: 75, y: 25 },
-      { id: 'TEC', type: 'TEC', x: 10, y: 5 }
-    ]
-  },
-  {
-    id: 'F005',
-    name: '5-3-2',
-    defenders: 5,
-    midfielders: 3,
-    forwards: 2,
-    positions: [
-      { id: 'GOL1', type: 'GOL', x: 50, y: 95 },
-      { id: 'ZAG1', type: 'ZAG', x: 30, y: 75 },
-      { id: 'ZAG2', type: 'ZAG', x: 50, y: 80 },
-      { id: 'ZAG3', type: 'ZAG', x: 70, y: 75 },
-      { id: 'LAT1', type: 'LAT', x: 10, y: 65 },
-      { id: 'LAT2', type: 'LAT', x: 90, y: 65 },
-      { id: 'MEI1', type: 'MEI', x: 30, y: 50 },
-      { id: 'MEI2', type: 'MEI', x: 50, y: 45 },
-      { id: 'MEI3', type: 'MEI', x: 70, y: 50 },
-      { id: 'ATA1', type: 'ATA', x: 35, y: 25 },
-      { id: 'ATA2', type: 'ATA', x: 65, y: 25 },
       { id: 'TEC', type: 'TEC', x: 10, y: 5 }
     ]
   }

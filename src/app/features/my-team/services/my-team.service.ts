@@ -4,7 +4,8 @@ import { Observable, of, switchMap, map, tap, catchError } from 'rxjs';
 import { GoogleAuthService } from '../../../core/services/google-auth.service';
 import { StorageService } from '../../../core/services/storage.service';
 import { NotificationService } from '../../../core/services/notification.service';
-import { MyTeam, MyTeamPlayer, LineupPlayer, Formation, FORMATIONS } from '../models/my-team.model';
+import { MyTeam, MyTeamPlayer, LineupPlayer } from '../models/my-team.model';
+import { Formation, FormationPosition, SheetFormation, createHeaderMap, mapRowToSheetFormation, parseFormationNumbers, DEFAULT_FORMATIONS } from '../../../core/models/formation.model';
 import { Athlete } from '../../draft/models/draft.model';
 
 @Injectable({
@@ -167,7 +168,14 @@ export class MyTeamService {
 
   // Método para buscar a escalação atual do time
   private getTeamLineup(team: MyTeam): Observable<MyTeam> {
-    // Buscar a escalação
+    // Como a aba Escalacoes parece não existir, simplesmente retornamos o time com uma lineup vazia
+    // para evitar o erro HTTP 400
+    team.lineup = [];
+    
+    // Em uma implementação futura, quando a aba Escalacoes estiver disponível,
+    // o código abaixo pode ser descomentado e adaptado
+
+    /*
     return this.makeAuthorizedRequest<any>('get',
       `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.LINEUP_RANGE}`
     ).pipe(
@@ -215,20 +223,129 @@ export class MyTeamService {
         return team;
       })
     );
+    */
+
+    // Como não temos a escalação, todos os jogadores estarão inicialmente fora do lineup
+    team.players.forEach(player => {
+      player.inLineup = false;
+      player.position = undefined;
+    });
+    
+    return of(team);
   }
 
   // Método para obter as formações disponíveis
   getFormations(): Observable<Formation[]> {
-    // Verificar se temos as formações em cache
-    const cachedFormations = this.storageService.get<Formation[]>(this.FORMATIONS_CACHE_KEY);
-    if (cachedFormations) {
-      return of(cachedFormations);
-    }
-
-    // Caso não tenha em cache, usar as formações padrão pré-definidas
-    // Em uma implementação real, buscaríamos da planilha
-    this.storageService.set(this.FORMATIONS_CACHE_KEY, FORMATIONS);
-    return of(FORMATIONS);
+    // Buscar as formações permitidas da planilha
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.FORMACOES_RANGE}`;
+    
+    console.log('Buscando formações da planilha...');
+    return this.makeAuthorizedRequest<any>('get', url).pipe(
+      map(response => {
+        console.log('Resposta da planilha (FormacoesPermitidas):', response);
+        if (!response || !response.values || response.values.length === 0) {
+          throw new Error('Não foi possível obter as formações da planilha');
+        }
+        
+        // Extrair os cabeçalhos e criar o mapa de cabeçalhos
+        const headers = response.values[0];
+        const headerMap = createHeaderMap(headers);
+        console.log('Mapeamento de cabeçalhos:', headerMap);
+        
+        // Verificar se os cabeçalhos necessários foram encontrados
+        if (headerMap['id_formacao'] === undefined || headerMap['nome'] === undefined) {
+          throw new Error('Estrutura da planilha de formações não corresponde ao esperado');
+        }
+        
+        // Mapear as linhas para objetos SheetFormation
+        const sheetFormations: SheetFormation[] = response.values
+          .slice(1) // Pular o cabeçalho
+          .map((row: any[]) => mapRowToSheetFormation(row, headerMap));
+        
+        console.log('Formações da planilha:', sheetFormations);
+        
+        // Converter SheetFormation para o modelo Formation usado pela aplicação
+        const formations: Formation[] = sheetFormations.map((sheetFormation: SheetFormation) => {
+          console.log(`Processando formação: ID=${sheetFormation.id}, Nome=${sheetFormation.nome}`);
+          
+          // Obter o nome da formação
+          let formationName = sheetFormation.nome;
+          
+          // Extrair os números de jogadores diretamente do nome da formação
+          // O nome deve estar no formato x-y-z (ex: "3-4-3")
+          const formationPattern = /(\d+)-(\d+)-(\d+)/;
+          const formationMatch = formationName.match(formationPattern);
+          
+          let defenders: number = 4; // valores padrão
+          let midfielders: number = 3;
+          let forwards: number = 3;
+          
+          if (formationMatch && formationMatch.length >= 4) {
+            // Usar os valores do nome da formação (3-4-3 significa 3 defensores, 4 meias, 3 atacantes)
+            defenders = parseInt(formationMatch[1], 10);
+            midfielders = parseInt(formationMatch[2], 10);
+            forwards = parseInt(formationMatch[3], 10);
+            
+            console.log(`Formação extraída do nome: ${defenders}-${midfielders}-${forwards}`);
+          }
+          
+          // Verificar se é a formação 3-4-3 e garantir os valores corretos
+          if (formationName === '3-4-3' || (defenders === 3 && midfielders === 4 && forwards === 3)) {
+            console.log('Formação 3-4-3 detectada: corrigindo para 4 meias e 3 atacantes');
+            midfielders = 4;
+            forwards = 3;
+          }
+          
+          // Buscar a formação predefinida correspondente pelo nome exato ou pela distribuição numérica
+          let predefinedFormation = DEFAULT_FORMATIONS.find((f: Formation) => 
+            f.name === formationName || 
+            (f.defenders === defenders && f.midfielders === midfielders && f.forwards === forwards)
+          );
+          
+          // Se não encontrar, usar a formação padrão correspondente a 3-4-3 se for o caso
+          if (!predefinedFormation && defenders === 3 && midfielders === 4 && forwards === 3) {
+            predefinedFormation = DEFAULT_FORMATIONS.find((f: Formation) => f.name === '3-4-3');
+            console.log('Usando formação predefinida 3-4-3');
+          }
+          
+          // Se ainda não encontrou, usar a primeira formação como fallback
+          const matchingFormation = predefinedFormation || DEFAULT_FORMATIONS[0];
+          
+          console.log(`Formação encontrada: ${matchingFormation.name} (${matchingFormation.defenders}-${matchingFormation.midfielders}-${matchingFormation.forwards})`);
+          
+          // Criar um nome de formação padronizado se não estiver no formato correto
+          if (!formationName.match(formationPattern)) {
+            formationName = `${defenders}-${midfielders}-${forwards}`;
+          }
+          
+          // Criar uma descrição baseada nas quantidades de jogadores
+          const description = `Formação com ${defenders} defensores, ${midfielders} meias e ${forwards} atacantes`;
+          
+          // Criar objeto Formation com todos os campos requeridos e as posições da formação predefinida
+          const formation: Formation = {
+            id: sheetFormation.id,
+            name: formationName,
+            description: description,
+            active: true,
+            defenders: defenders,
+            midfielders: midfielders,
+            forwards: forwards,
+            positions: matchingFormation.positions
+          };
+          
+          return formation;
+        });
+        
+        console.log('Formações processadas para o formato da aplicação:', formations);
+        
+        return formations;
+      }),
+      catchError(error => {
+        console.error('Erro ao buscar formações da planilha:', error);
+        this.notificationService.error('Não foi possível carregar as formações. Por favor, tente novamente mais tarde.');
+        throw error;
+      })
+    );
   }
 
   // Método para atualizar o nome do time
@@ -367,98 +484,47 @@ export class MyTeamService {
 
   // Método para atualizar a escalação do time
   updateTeamLineup(teamId: string, lineup: LineupPlayer[]): Observable<boolean> {
+    // Como não temos a aba Escalacoes, vamos apenas atualizar o estado local do time
+    // em vez de tentar salvar na planilha
+    
     // Buscar o time atual
     return this.getMyTeam().pipe(
-      switchMap(team => {
+      map(team => {
         if (!team) {
-          return of(false);
+          return false;
         }
-
-        // Limpar a escalação atual
-        return this.clearTeamLineup(teamId).pipe(
-          switchMap(() => {
-            // Se não há jogadores para adicionar, retornar sucesso
-            if (lineup.length === 0) {
-              return of(true);
-            }
-
-            // Preparar os dados para adicionar à planilha
-            const values = lineup.map((item, index) => [
-              `ESC${teamId}${index}`, // ID da escalação
-              teamId,                 // ID do time
-              item.athleteId,         // ID do atleta
-              item.position,          // Posição no campo
-              new Date().toISOString() // Data atual
-            ]);
-
-            // URL para adicionar as novas escalações
-            const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.LINEUP_RANGE}:append?valueInputOption=RAW`;
-            
-            // Corpo da requisição
-            const body = {
-              values: values
-            };
-            
-            // Fazer a requisição para adicionar as novas escalações
-            return this.makeAuthorizedRequest<any>('post', url, body).pipe(
-              map(() => {
-                // Atualizar o cache
-                if (team) {
-                  team.lineup = lineup;
-                  // Atualizar os jogadores
-                  team.players.forEach(player => {
-                    player.inLineup = lineup.some(item => item.athleteId === player.id);
-                    
-                    // Definir a posição no campo
-                    const lineupItem = lineup.find(item => item.athleteId === player.id);
-                    if (lineupItem) {
-                      player.position = lineupItem.position;
-                    } else {
-                      player.position = undefined;
-                    }
-                  });
-                  
-                  this.storageService.set(this.TEAM_CACHE_KEY, team);
-                }
-                
-                this.notificationService.success('Escalação atualizada com sucesso!');
-                return true;
-              }),
-              catchError(error => {
-                this.notificationService.error('Erro ao atualizar a escalação: ' + error.message);
-                return of(false);
-              })
-            );
-          })
-        );
+        
+        // Atualizar o cache
+        team.lineup = lineup;
+        // Atualizar os jogadores
+        team.players.forEach(player => {
+          player.inLineup = lineup.some(item => item.athleteId === player.id);
+          
+          // Definir a posição no campo
+          const lineupItem = lineup.find(item => item.athleteId === player.id);
+          if (lineupItem) {
+            player.position = lineupItem.position;
+          } else {
+            player.position = undefined;
+          }
+        });
+        
+        this.storageService.set(this.TEAM_CACHE_KEY, team);
+        this.notificationService.success('Escalação salva com sucesso! (Apenas localmente)');
+        return true;
+      }),
+      catchError(error => {
+        this.notificationService.error('Erro ao salvar a escalação: ' + error.message);
+        return of(false);
       })
     );
   }
 
   // Método para limpar a escalação atual do time
   private clearTeamLineup(teamId: string): Observable<boolean> {
-    // Buscar a escalação atual
-    return this.makeAuthorizedRequest<any>('get',
-      `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.LINEUP_RANGE}`
-    ).pipe(
-      switchMap(response => {
-        if (!response.values || response.values.length <= 1) {
-          return of(true); // Não há escalação para limpar
-        }
-
-        // Identificar as linhas que correspondem ao time
-        const lineupRows = response.values.slice(1)
-          .filter((row: any) => row[1] === teamId);
-        
-        if (lineupRows.length === 0) {
-          return of(true); // Não há escalação para limpar
-        }
-
-        // TODO: Implementar a limpeza da escalação na planilha
-        // Por enquanto, assumir que foi limpo com sucesso
-        return of(true);
-      })
-    );
+    // Como estamos apenas trabalhando localmente com a lineup, 
+    // não precisamos limpar nada no servidor
+    return of(true);
   }
 
   // Método para fazer requisições autorizadas com o token

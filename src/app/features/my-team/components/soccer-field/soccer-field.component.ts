@@ -4,6 +4,7 @@ import { CdkDragDrop } from '@angular/cdk/drag-drop';
 import { DragDropModule } from '@angular/cdk/drag-drop';
 import { MatIconModule } from '@angular/material/icon';
 import { MyTeamPlayer, FormationPosition } from '../../models/my-team.model';
+import { TeamLogoService } from '../../../../core/services/team-logo.service';
 
 @Component({
   selector: 'app-soccer-field',
@@ -46,7 +47,7 @@ import { MyTeamPlayer, FormationPosition } from '../../models/my-team.model';
               cdkDrag
               [cdkDragData]="player"
             >
-              <img *ngIf="player.foto_url" [src]="player.foto_url" alt="{{ player.apelido }}" class="player-photo">
+              <img *ngIf="player.foto_url" [src]="getPlayerPhoto(player)" alt="{{ player.apelido }}" class="player-photo">
               <div *ngIf="!player.foto_url" class="player-initials">
                 {{ getPlayerInitials(player) }}
               </div>
@@ -268,6 +269,8 @@ export class SoccerFieldComponent {
   @Input() players: MyTeamPlayer[] = [];
   @Output() playerDropped = new EventEmitter<{player: MyTeamPlayer, positionId: string}>();
   
+  constructor(private teamLogoService: TeamLogoService) {}
+  
   onDrop(event: CdkDragDrop<any>, positionId: string): void {
     if (!event.item.data) {
       return;
@@ -304,5 +307,19 @@ export class SoccerFieldComponent {
     }
     
     return (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase();
+  }
+  
+  getPlayerPhoto(player: MyTeamPlayer): string {
+    // Verificar se a foto é uma URL de clube - se for, usar o serviço de logo
+    if (player.foto_url && (player.foto_url.includes('clube') || player.foto_url.includes('team'))) {
+      return this.teamLogoService.getTeamLogoPath(player.clubeAbreviacao || player.clube);
+    }
+    // Verificar se a URL começa com "assets/clubs"
+    if (player.foto_url && !player.foto_url.startsWith('http')) {
+      if (!player.foto_url.startsWith('assets/')) {
+        return `assets/clubs/${player.foto_url}`;
+      }
+    }
+    return player.foto_url || 'assets/clubs/default.png';
   }
 } 
