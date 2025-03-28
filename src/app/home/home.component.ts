@@ -296,6 +296,7 @@ import { MatRippleModule } from '@angular/material/core';
 
     .menu-header {
       padding: var(--spacing-md);
+      min-width: 280px;
     }
 
     .menu-user-info {
@@ -307,16 +308,24 @@ import { MatRippleModule } from '@angular/material/core';
     .menu-user-details {
       display: flex;
       flex-direction: column;
+      flex: 1;
+      min-width: 0;
     }
 
     .menu-user-name {
       font-weight: 500;
       font-size: 16px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .menu-user-email {
       font-size: 14px;
       color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .team-info {
@@ -457,6 +466,33 @@ import { MatRippleModule } from '@angular/material/core';
       .user-name {
         display: none;
       }
+    }
+
+    // Font classes
+    .dm-sans {
+      font-family: "DM Sans", sans-serif;
+      font-optical-sizing: auto;
+      font-style: normal;
+    }
+
+    .dm-sans-italic {
+      font-family: "DM Sans", sans-serif;
+      font-optical-sizing: auto;
+      font-style: italic;
+    }
+
+    // Global styles
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: "DM Sans", sans-serif;
+      font-optical-sizing: auto;
+      font-style: normal;
+    }
+
+    .mat-typography {
+      font: 400 14px/20px "DM Sans", sans-serif;
+      letter-spacing: normal;
     }
   `
 })

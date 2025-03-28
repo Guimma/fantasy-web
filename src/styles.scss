@@ -27,11 +27,26 @@ $theme: mat.define-light-theme((
 // Include theme styles for core and each component used in your app.
 @include mat.all-component-themes($theme);
 
+// Font classes
+.dm-sans {
+  font-family: "DM Sans", sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+}
+
+.dm-sans-italic {
+  font-family: "DM Sans", sans-serif;
+  font-optical-sizing: auto;
+  font-style: italic;
+}
+
 // Global styles
 html, body {
   height: 100%;
   margin: 0;
-  font-family: Roboto, "Helvetica Neue", sans-serif;
+  font-family: "DM Sans", sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
 }
 
 body {
@@ -55,7 +70,7 @@ body {
 }
 
 .mat-typography {
-  font: 400 14px/20px Roboto, "Helvetica Neue", sans-serif;
+  font: 400 14px/20px "DM Sans", sans-serif;
   letter-spacing: normal;
 }
 
