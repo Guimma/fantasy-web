@@ -37,7 +37,7 @@ import { FooterComponent } from '../core/components/footer/footer.component';
       <main class="main-content">
         <div class="home-container">
           <div class="team-info" *ngIf="userTeam">
-            <h2><mat-icon>shield</mat-icon> Seu Time: {{ userTeam.name }}</h2>
+            <h2><mat-icon>shield</mat-icon> {{ randomTeamGreeting }} {{ userTeam.name }}</h2>
           </div>
           
           <div class="card-container">
@@ -148,6 +148,14 @@ import { FooterComponent } from '../core/components/footer/footer.component';
       align-items: center;
       gap: var(--spacing-sm);
       color: var(--primary-color);
+      font-size: 28px;
+      font-weight: 700;
+    }
+    
+    .team-info h2 mat-icon {
+      font-size: 28px;
+      height: 28px;
+      width: 28px;
     }
     
     .card-container {
@@ -262,11 +270,42 @@ export class HomeComponent implements OnInit {
   currentUser: any = null;
   userTeam: any = null;
   isAdmin = false;
+  randomTeamGreeting: string = '';
+
+  // Lista de frases de boas-vindas para o time
+  private teamGreetings: string[] = [
+    "Bem-vindo de volta",
+    "🌍 O maior time do mundo é o seu:",
+    "🎩 Senhoras e senhores, eis o gigante",
+    "👑 Salve o",
+    "🏆 Avisem que o campeão será",
+    "💀 Trema mundo, chegou o poderoso",
+    "👑 A lenda continua:",
+    "💰 Façam suas apostas no favorito:",
+    "👹 O terror dos adversários:",
+    "🏆 Direto do olimpo dos campeões:",
+    "💪 O invencível, o imbatível:",
+    "🔰 Não é time, é seleção:",
+    "😨 Mais temido que a sogra:",
+    "🏆 Melhor que café na segunda-feira:",
+    "👹 O pesadelo dos rivais:",
+    "👑 Até os deuses aplaudem o",
+    "🕒 1 minuto de silêncio para o",
+    "👶 O pequeno",
+    "🙌 A torcida ainda acredita no"
+  ];
 
   ngOnInit(): void {
     this.currentUser = this.googleAuthService.currentUser;
     this.isAdmin = this.googleAuthService.isAdmin();
     this.userTeam = this.googleAuthService.getUserTeam();
+    this.randomTeamGreeting = this.getRandomTeamGreeting();
+  }
+
+  // Método para obter uma frase aleatória de boas-vindas
+  private getRandomTeamGreeting(): string {
+    const randomIndex = Math.floor(Math.random() * this.teamGreetings.length);
+    return this.teamGreetings[randomIndex];
   }
 
   logout(): void {
