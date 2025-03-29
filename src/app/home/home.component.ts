@@ -112,26 +112,6 @@ import { FooterComponent } from '../core/components/footer/footer.component';
     </div>
   `,
   styles: `
-    :host {
-      --primary-color: #3f51b5;
-      --primary-light: #f5f7ff;
-      --secondary-color: #ff4081;
-      --background-color: #f0f2f5;
-      --card-background: white;
-      --disabled-background: rgba(0,0,0,0.03);
-      --text-primary: #333;
-      --text-secondary: #666;
-      --border-radius: 8px;
-      --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
-      --shadow-md: 0 4px 8px rgba(0,0,0,0.12);
-      --shadow-lg: 0 8px 16px rgba(0,0,0,0.16);
-      --spacing-xs: 4px;
-      --spacing-sm: 8px;
-      --spacing-md: 16px;
-      --spacing-lg: 24px;
-      --spacing-xl: 32px;
-    }
-
     .app-container {
       min-height: 100vh;
       display: flex;
@@ -156,7 +136,7 @@ import { FooterComponent } from '../core/components/footer/footer.component';
 
     .team-info {
       margin-bottom: var(--spacing-lg);
-      background-color: var(--primary-light);
+      background-color: var(--light-color);
       padding: var(--spacing-md);
       border-radius: var(--border-radius);
       box-shadow: var(--shadow-sm);
@@ -227,7 +207,7 @@ import { FooterComponent } from '../core/components/footer/footer.component';
       position: absolute;
       bottom: var(--spacing-md);
       right: var(--spacing-md);
-      background-color: var(--secondary-color);
+      background-color: var(--accent-color, var(--secondary-color));
       color: white;
       padding: 4px 8px;
       border-radius: 12px;

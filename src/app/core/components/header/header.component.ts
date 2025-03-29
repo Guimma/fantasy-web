@@ -10,6 +10,7 @@ import { NgIf } from '@angular/common';
 import { GoogleAuthService } from '../../services/google-auth.service';
 import { AuthService } from '../../services/auth.service';
 import { Router } from '@angular/router';
+import { ThemeService } from '../../theme/theme.service';
 
 @Component({
   selector: 'app-header',
@@ -28,28 +29,28 @@ import { Router } from '@angular/router';
     <mat-toolbar class="header-toolbar">
       <div class="header-content">
         <div class="header-left">
-          <button mat-icon-button [matMenuTriggerFor]="navMenu" class="nav-menu-button" color="primary">
-            <mat-icon>menu</mat-icon>
+          <button mat-icon-button [matMenuTriggerFor]="navMenu" class="nav-menu-button">
+            <mat-icon class="menu-icon">menu</mat-icon>
           </button>
           <mat-menu #navMenu="matMenu" class="primary-menu">
             <a mat-menu-item routerLink="/home" routerLinkActive="active-link" [routerLinkActiveOptions]="{exact: true}" class="primary-menu-item">
-              <mat-icon color="primary">home</mat-icon>
+              <mat-icon>home</mat-icon>
               <span>Home</span>
             </a>
             <a mat-menu-item routerLink="/mercado" routerLinkActive="active-link" class="primary-menu-item">
-              <mat-icon color="primary">shopping_cart</mat-icon>
+              <mat-icon>shopping_cart</mat-icon>
               <span>Mercado</span>
             </a>
             <a mat-menu-item routerLink="/meu-time" routerLinkActive="active-link" class="primary-menu-item">
-              <mat-icon color="primary">sports_soccer</mat-icon>
+              <mat-icon>sports_soccer</mat-icon>
               <span>Meu Time</span>
             </a>
             <a mat-menu-item routerLink="/times" routerLinkActive="active-link" class="primary-menu-item">
-              <mat-icon color="primary">emoji_events</mat-icon>
+              <mat-icon>emoji_events</mat-icon>
               <span>Liga</span>
             </a>
             <a mat-menu-item routerLink="/draft" routerLinkActive="active-link" *ngIf="isAdmin" class="primary-menu-item">
-              <mat-icon color="primary">view_list</mat-icon>
+              <mat-icon>view_list</mat-icon>
               <span>Draft</span>
             </a>
           </mat-menu>
@@ -102,7 +103,8 @@ import { Router } from '@angular/router';
   styles: `
     /* Usar variáveis globais definidas em styles.scss */
     .header-toolbar {
-      background-color: white;
+      background-color: var(--primary-color);
+      color: white;
       box-shadow: var(--shadow-sm);
       height: 100px;
       padding: 0;
@@ -135,7 +137,7 @@ import { Router } from '@angular/router';
 
     .nav-menu-button {
       margin-right: var(--spacing-sm);
-      color: var(--primary-color);
+      color: white;
     }
 
     .nav-menu-button mat-icon {
@@ -162,6 +164,7 @@ import { Router } from '@angular/router';
       height: 80px;
       width: auto;
       object-fit: contain;
+      filter: brightness(0) invert(1); /* Make logo white */
     }
 
     .header-right {
@@ -183,8 +186,9 @@ import { Router } from '@angular/router';
       gap: var(--spacing-sm);
       padding: 8px 16px 8px 8px;
       border-radius: 24px;
-      border: 1px solid rgba(0, 0, 0, 0.08);
-      background-color: white;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background-color: rgba(255, 255, 255, 0.1);
+      color: white;
       transition: background-color 0.2s, box-shadow 0.2s;
       min-width: 0;
       max-width: 100%;
@@ -195,183 +199,138 @@ import { Router } from '@angular/router';
     }
 
     .user-button-container:hover {
-      background-color: var(--primary-light);
+      background-color: rgba(255, 255, 255, 0.2);
       box-shadow: var(--shadow-sm);
     }
 
     .user-avatar {
-      width: 36px;
-      height: 36px;
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
-      background-color: var(--primary-color);
-      color: white;
+      background-color: var(--secondary-color);
+      color: var(--primary-color);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-weight: 500;
+      font-weight: 600;
       font-size: 14px;
       flex-shrink: 0;
     }
 
     .user-photo {
-      width: 36px;
-      height: 36px;
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
       object-fit: cover;
       flex-shrink: 0;
     }
 
     .user-name-container {
-      flex: 1;
       overflow: hidden;
-      padding-left: var(--spacing-sm);
-      text-align: left;
-      min-width: 0;
+      max-width: 150px;
     }
 
     .user-name {
-      display: block;
-      width: 100%;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      display: block;
       font-size: 14px;
-      line-height: normal;
-      text-align: left;
+      color: white;
     }
 
     .menu-header {
-      padding: 16px;
-      min-width: 280px;
-      max-width: 100%;
-      box-sizing: border-box;
+      padding: 16px 16px 8px;
     }
 
     .menu-user-info {
       display: flex;
-      align-items: flex-start;
-      gap: 16px;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .menu-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: var(--secondary-color);
+      color: var(--primary-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .menu-photo {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
     }
 
     .menu-user-details {
-      display: flex;
-      flex-direction: column;
-      flex: 1;
-      min-width: 0;
-      gap: 4px;
+      overflow: hidden;
     }
 
     .menu-user-name {
       font-weight: 500;
-      font-size: 16px;
+      font-size: 14px;
+      color: var(--text-primary);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
     .menu-user-email {
-      font-size: 14px;
-      color: rgba(0, 0, 0, 0.6);
+      font-size: 12px;
+      color: var(--text-secondary);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      margin-bottom: 4px;
     }
 
     .menu-user-role {
       display: flex;
       align-items: center;
       gap: 4px;
-      font-size: 13px;
-      color: var(--primary-color);
-      margin-top: 4px;
+      font-size: 12px;
+      color: var(--text-secondary);
     }
 
     .role-icon {
-      font-size: 16px;
-      width: 16px;
-      height: 16px;
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
     }
 
-    .menu-avatar {
-      width: 48px;
-      height: 48px;
-      font-size: 18px;
-      flex-shrink: 0;
-      background-color: var(--primary-color);
-      color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 50%;
+    /* Estilo para links ativos no menu */
+    .active-link {
+      background-color: rgba(0, 0, 0, 0.04);
     }
 
-    .menu-photo {
-      width: 48px;
-      height: 48px;
-      flex-shrink: 0;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 2px solid var(--primary-light);
-    }
-
-    mat-divider {
-      margin: 4px 0;
-    }
-
-    button[mat-menu-item] {
-      height: 40px;
-      line-height: 40px;
-    }
-
-    button[mat-menu-item] mat-icon {
-      margin-right: 16px;
-    }
-
+    /* Media queries para responsividade */
     @media (max-width: 768px) {
-      .header-toolbar {
-        height: 80px;
+      .user-name-container {
+        display: none;
       }
+    }
 
+    @media (max-width: 480px) {
       .header-content {
-        padding: 0 var(--spacing-sm);
+        padding: 0 var(--spacing-md);
       }
-
+      
       .logo-image {
         height: 60px;
       }
-
-      .user-button-container {
-        padding: 6px;
-      }
-
-      .user-name {
-        display: none;
-      }
-
-      .menu-header {
-        min-width: 240px;
-      }
     }
 
-    :host ::ng-deep {
-      // Usando um seletor direto e mais específico com !important 
-      .mdc-list-item__primary-text {
-        color: var(--primary-color) !important;
-      }
-      
-      .mat-mdc-menu-item .mat-icon {
-        color: var(--primary-color) !important;
-      }
-      
-      .mat-mdc-menu-item {
-        &:hover {
-          background-color: var(--primary-light);
-        }
-      }
-      
-      .mat-mdc-menu-item.active-link {
-        background-color: var(--primary-light);
-      }
+    .menu-icon {
+      color: var(--accent-color) !important;
     }
   `
 })
@@ -379,13 +338,17 @@ export class HeaderComponent {
   protected googleAuthService = inject(GoogleAuthService);
   protected authService = inject(AuthService);
   protected router = inject(Router);
-  
+  protected themeService = inject(ThemeService);
+
   currentUser = this.googleAuthService.currentUser;
   isAdmin = this.googleAuthService.isAdmin();
 
   handleLogoError(event: any): void {
-    console.warn('Logo não encontrado em assets/images/logo.png');
-    event.target.style.display = 'none';
+    // Fallback para um texto caso a imagem não carregue
+    event.target.src = '';
+    event.target.alt = 'Fantasy Futebol';
+    event.target.style.fontSize = '24px';
+    event.target.style.fontWeight = 'bold';
   }
 
   logout(): void {
@@ -397,8 +360,9 @@ export class HeaderComponent {
     if (!this.currentUser?.name) return '?';
     
     const nameParts = this.currentUser.name.split(' ');
-    if (nameParts.length === 1) return nameParts[0].charAt(0).toUpperCase();
-    
-    return (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase();
+    if (nameParts.length > 1) {
+      return (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase();
+    }
+    return nameParts[0][0].toUpperCase();
   }
 } 

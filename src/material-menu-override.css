@@ -1,27 +1,150 @@
 /* Estilos para corrigir a cor do texto nos menus do Material */
 
-/* Força cor azul em todos os itens do menu */
-.mat-mdc-menu-panel .mat-mdc-menu-content .mat-mdc-menu-item {
-  color: #3f51b5 !important;
+/* Sobrescrições para Angular Material 17 usando variáveis CSS nativas */
+
+/* Variáveis CSS para Angular Material 17 */
+:root {
+  /* Cores de botões filled */
+  --mdc-filled-button-container-color: #2d2a32 !important;
+  --mdc-filled-button-label-text-color: white !important;
+  
+  /* Cores accent */
+  --mdc-filled-button-container-color-accent: #ddd92a !important;
+  --mdc-filled-button-label-text-color-accent: #2d2a32 !important;
+  
+  /* Cores para botões outlined */
+  --mdc-outlined-button-outline-color: #2d2a32 !important;
+  --mdc-outlined-button-label-text-color: #2d2a32 !important;
+  --mdc-outlined-button-outline-color-accent: #ddd92a !important;
+  --mdc-outlined-button-label-text-color-accent: #ddd92a !important;
+  
+  /* Cores para toolbar */
+  --mat-toolbar-container-background-color: #2d2a32 !important;
+  --mat-toolbar-container-text-color: white !important;
+  
+  /* Cores para ícones */
+  --mat-icon-color: #2d2a32 !important;
+  
+  /* Cores para formulários */
+  --mdc-filled-text-field-caret-color: #ddd92a !important;
+  --mdc-filled-text-field-focus-active-indicator-color: #ddd92a !important;
+  --mdc-filled-text-field-focus-label-text-color: #ddd92a !important;
+  
+  /* Cores para checkboxes */
+  --mdc-checkbox-selected-checkmark-color: #2d2a32 !important;
+  --mdc-checkbox-selected-focus-icon-color: #ddd92a !important;
+  --mdc-checkbox-selected-hover-icon-color: #ddd92a !important;
+  --mdc-checkbox-selected-icon-color: #ddd92a !important;
+  --mdc-checkbox-selected-pressed-icon-color: #ddd92a !important;
+  
+  /* Cores para radio buttons */
+  --mdc-radio-selected-focus-icon-color: #ddd92a !important;
+  --mdc-radio-selected-hover-icon-color: #ddd92a !important;
+  --mdc-radio-selected-icon-color: #ddd92a !important;
+  --mdc-radio-selected-pressed-icon-color: #ddd92a !important;
+  
+  /* Cores para tabs */
+  --mat-tab-header-active-focus-indicator-color: #2d2a32 !important;
+  --mat-tab-header-active-hover-indicator-color: #2d2a32 !important;
+  --mat-tab-header-active-ripple-color: #2d2a32 !important;
+  --mat-tab-header-active-label-text-color: #2d2a32 !important;
+  --mat-tab-header-inactive-ripple-color: rgba(45, 42, 50, 0.1) !important;
+  
+  /* Cores para ripple */
+  --mat-ripple-color: rgba(45, 42, 50, 0.1) !important;
 }
 
-/* Força cor azul em todos os ícones dentro do menu */
-.mat-mdc-menu-panel .mat-mdc-menu-content .mat-mdc-menu-item .mat-icon {
-  color: #3f51b5 !important;
+/* Força cor primária em todos os itens do menu */
+html body .mat-mdc-menu-panel .mat-mdc-menu-content .mat-mdc-menu-item,
+html body .mat-mdc-menu-item {
+  color: #2d2a32 !important;
 }
 
-/* Força cor azul em todos os textos dentro do menu */
-.mat-mdc-menu-panel .mat-mdc-menu-content .mat-mdc-menu-item span,
-.mat-mdc-menu-panel .mat-mdc-menu-content .mat-mdc-menu-item .mdc-list-item__primary-text {
-  color: #3f51b5 !important;
+/* Força cor primária em todos os ícones dentro do menu */
+html body .mat-mdc-menu-panel .mat-mdc-menu-content .mat-mdc-menu-item .mat-icon,
+html body .mat-mdc-menu-item .mat-icon {
+  color: #2d2a32 !important;
+}
+
+/* Força cor primária em todos os textos dentro do menu */
+html body .mat-mdc-menu-panel .mat-mdc-menu-content .mat-mdc-menu-item span,
+html body .mat-mdc-menu-panel .mat-mdc-menu-content .mat-mdc-menu-item .mdc-list-item__primary-text,
+html body .mat-mdc-menu-item span,
+html body .mat-mdc-menu-item .mdc-list-item__primary-text {
+  color: #2d2a32 !important;
+}
+
+/* Estilos específicos para o menu hamburguer e seus itens (cor verde/accent) */
+html body app-header .nav-menu-button mat-icon,
+html body app-header button[matMenuTriggerFor="navMenu"] mat-icon {
+  color: #ddd92a !important;
+}
+
+/* Estilo para os itens do menu hamburguer primary-menu */
+html body .primary-menu .mat-mdc-menu-content .primary-menu-item .mat-icon,
+html body .primary-menu .primary-menu-item .mat-icon {
+  color: #ddd92a !important;
+}
+
+html body .primary-menu .mat-mdc-menu-content .primary-menu-item span,
+html body .primary-menu .primary-menu-item span {
+  color: #2d2a32 !important;
 }
 
 /* Estilos para quando o cursor passar por cima do item */
-.mat-mdc-menu-panel .mat-mdc-menu-content .mat-mdc-menu-item:hover {
-  background-color: #f5f7ff !important;
+html body .mat-mdc-menu-panel .mat-mdc-menu-content .mat-mdc-menu-item:hover,
+html body .mat-mdc-menu-item:hover {
+  background-color: rgba(238, 239, 168, 0.3) !important;
 }
 
 /* Estilos para itens ativos */
-.mat-mdc-menu-panel .mat-mdc-menu-content .mat-mdc-menu-item.active-link {
-  background-color: #f5f7ff !important;
+html body .mat-mdc-menu-panel .mat-mdc-menu-content .mat-mdc-menu-item.active-link,
+html body .mat-mdc-menu-item.active-link {
+  background-color: rgba(221, 217, 42, 0.2) !important;
+}
+
+/* Forçar a cor do ripple (efeito de clique) */
+html body .mat-ripple-element {
+  background-color: rgba(221, 217, 42, 0.2) !important;
+}
+
+/* Forçar cor para botões do Material */
+html body .mat-mdc-button.mat-primary, 
+html body .mat-mdc-unelevated-button.mat-primary, 
+html body .mat-mdc-raised-button.mat-primary, 
+html body .mat-mdc-outlined-button.mat-primary {
+  --mdc-filled-button-container-color: #2d2a32 !important;
+  --mdc-filled-button-label-text-color: white !important;
+  --mat-mdc-button-persistent-ripple-color: #2d2a32 !important;
+  --mat-mdc-button-ripple-color: rgba(45, 42, 50, 0.1) !important;
+}
+
+html body .mat-mdc-button.mat-accent, 
+html body .mat-mdc-unelevated-button.mat-accent, 
+html body .mat-mdc-raised-button.mat-accent, 
+html body .mat-mdc-outlined-button.mat-accent {
+  --mdc-filled-button-container-color: #ddd92a !important;
+  --mdc-filled-button-label-text-color: #2d2a32 !important;
+  --mat-mdc-button-persistent-ripple-color: #ddd92a !important;
+  --mat-mdc-button-ripple-color: rgba(221, 217, 42, 0.1) !important;
+}
+
+/* Sobrescrever o tema primário para toolbars */
+html body .mat-toolbar.mat-primary {
+  background-color: #2d2a32 !important;
+  color: white !important;
+}
+
+html body .mat-toolbar.mat-accent {
+  background-color: #ddd92a !important;
+  color: #2d2a32 !important;
+}
+
+/* Sobrescrever o tema para tabs */
+html body .mat-mdc-tab .mdc-tab-indicator__content--underline {
+  border-color: #2d2a32 !important;
+}
+
+html body .mat-mdc-tab-header .mat-mdc-tab.mat-mdc-tab-active .mdc-tab__text-label {
+  color: #2d2a32 !important;
 } 

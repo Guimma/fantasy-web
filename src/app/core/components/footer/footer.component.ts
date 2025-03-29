@@ -63,7 +63,8 @@ import { NgIf } from '@angular/common';
   styles: `
     /* Usar variáveis globais definidas em styles.scss */
     .footer {
-      background-color: white;
+      background-color: var(--primary-color);
+      color: white;
       padding: var(--spacing-xl) 0 var(--spacing-md);
       margin-top: auto;
       box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.05);
@@ -107,6 +108,7 @@ import { NgIf } from '@angular/common';
       height: 60px;
       width: auto;
       object-fit: contain;
+      filter: brightness(0) invert(1); /* Make logo white */
     }
 
     .fallback-logo {
@@ -119,23 +121,23 @@ import { NgIf } from '@angular/common';
       font-size: 24px;
       width: 24px;
       height: 24px;
-      color: var(--primary-color);
+      color: var(--secondary-color);
     }
 
     .logo-text {
       font-size: 18px;
       font-weight: 600;
-      color: var(--primary-color);
+      color: white;
     }
 
     .footer-description {
-      color: var(--text-secondary);
+      color: rgba(255, 255, 255, 0.8);
       line-height: 1.6;
       margin: 0;
     }
 
     h3 {
-      color: var(--text-primary);
+      color: var(--secondary-color);
       font-size: 16px;
       font-weight: 600;
       margin: 0;
@@ -148,13 +150,13 @@ import { NgIf } from '@angular/common';
     }
 
     .footer-nav a {
-      color: var(--text-secondary);
+      color: rgba(255, 255, 255, 0.8);
       text-decoration: none;
       transition: color 0.3s ease;
     }
 
     .footer-nav a:hover {
-      color: var(--primary-color);
+      color: var(--secondary-color);
     }
 
     .contact-info {
@@ -167,13 +169,13 @@ import { NgIf } from '@angular/common';
       display: flex;
       align-items: center;
       gap: var(--spacing-sm);
-      color: var(--text-secondary);
+      color: rgba(255, 255, 255, 0.8);
       text-decoration: none;
       transition: color 0.3s ease;
     }
 
     .contact-link:hover {
-      color: var(--primary-color);
+      color: var(--secondary-color);
     }
 
     .contact-link mat-icon {
@@ -186,40 +188,33 @@ import { NgIf } from '@angular/common';
       max-width: 1200px;
       margin: var(--spacing-xl) auto 0;
       padding: var(--spacing-md);
-      border-top: 1px solid rgba(0, 0, 0, 0.08);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
       text-align: center;
     }
 
     .footer-bottom p {
-      color: var(--text-secondary);
+      color: rgba(255, 255, 255, 0.7);
       font-size: 14px;
       margin: 0;
     }
 
     @media (max-width: 768px) {
       .footer-content {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .footer-section:first-child {
+        grid-column: span 2;
+      }
+    }
+
+    @media (max-width: 576px) {
+      .footer-content {
         grid-template-columns: 1fr;
-        gap: var(--spacing-lg);
       }
 
-      .footer-section {
-        text-align: center;
-      }
-
-      .footer-logo {
-        justify-content: center;
-      }
-
-      .footer-nav {
-        align-items: center;
-      }
-
-      .contact-link {
-        justify-content: center;
-      }
-
-      .footer-logo-image {
-        height: 50px;
+      .footer-section:first-child {
+        grid-column: span 1;
       }
     }
   `
