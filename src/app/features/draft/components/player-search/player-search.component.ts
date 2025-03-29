@@ -174,7 +174,7 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
     .section-title {
       margin: 0;
       padding: 16px 16px 8px 16px;
-      color: #3f51b5;
+      color: var(--primary-color);
       font-size: 20px;
       font-weight: 500;
       flex-shrink: 0;
@@ -229,7 +229,7 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
     .filter-chip {
       display: flex;
       align-items: center;
-      background-color: #e3f2fd;
+      background-color: var(--light-color);
       border-radius: 16px;
       padding: 4px 8px 4px 12px;
       font-size: 14px;
@@ -257,22 +257,19 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
     }
 
     mat-divider {
-      margin: 0;
-      flex-shrink: 0;
+      margin: 8px 0;
     }
 
     .results-count {
+      padding: 8px 16px;
       font-size: 14px;
-      color: #666;
-      padding: 8px 16px 4px 16px;
-      flex-shrink: 0;
+      color: #757575;
     }
 
     .players-list {
+      padding: 0 16px 16px;
       overflow-y: auto;
-      padding: 4px 16px 16px 16px;
-      flex: 1 1 auto;
-      min-height: 0;
+      flex: 1;
     }
 
     .player-item {
@@ -282,27 +279,25 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
     .player-item:last-child {
       margin-bottom: 0;
     }
-    
+
     .player-card {
-      padding: 0;
-      border: 1px solid rgba(0,0,0,0.08);
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+      background-color: white;
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow-sm);
       transition: transform 0.2s, box-shadow 0.2s;
+      border: 1px solid rgba(0,0,0,0.06);
     }
-    
+
     .player-card:hover {
       transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(0,0,0,0.15) !important;
-    }
-    
-    mat-card-content {
-      padding: 12px !important;
+      box-shadow: var(--shadow-md);
     }
 
     .player-card-content {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      padding: 12px;
     }
 
     .player-main-info {
@@ -312,13 +307,11 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
     }
 
     .team-logo {
-      width: 40px;
-      height: 40px;
+      width: 36px;
+      height: 36px;
       display: flex;
       align-items: center;
       justify-content: center;
-      background-color: transparent;
-      overflow: hidden;
       flex-shrink: 0;
     }
 
@@ -335,96 +328,67 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
 
     .player-name {
       font-weight: 500;
-      color: #333;
+      font-size: 16px;
+      margin-bottom: 4px;
     }
 
     .player-meta {
       display: flex;
       align-items: center;
       gap: 8px;
-      margin-top: 4px;
+      font-size: 13px;
     }
 
     .player-position {
       display: inline-block;
-      padding: 3px 6px;
+      padding: 2px 6px;
       border-radius: 4px;
-      font-size: 11px;
-      font-weight: bold;
-      letter-spacing: 0.5px;
+      font-weight: 500;
       color: white;
-      background-color: #aaa;
-      text-transform: uppercase;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+      background-color: var(--primary-color);
     }
 
-    .player-position[data-position="GOL"], 
-    .player-position[data-position="G"] {
-      background-color: #ffeb3b;
-      color: #000;
+    .player-position[data-position="GOL"] {
+      background-color: #ffb74d;
     }
 
-    .player-position[data-position="ZAG"], 
-    .player-position[data-position="Z"] {
-      background-color: #2196f3;
-      color: white;
+    .player-position[data-position="ZAG"] {
+      background-color: #4fc3f7;
     }
 
-    .player-position[data-position="LAT"], 
-    .player-position[data-position="L"] {
-      background-color: #4caf50;
-      color: white;
+    .player-position[data-position="LAT"] {
+      background-color: #7986cb;
     }
 
-    .player-position[data-position="MEI"], 
-    .player-position[data-position="M"] {
-      background-color: #ff9800;
-      color: #000;
+    .player-position[data-position="MEI"] {
+      background-color: #81c784;
     }
 
-    .player-position[data-position="ATA"], 
-    .player-position[data-position="A"] {
-      background-color: #f44336;
-      color: white;
+    .player-position[data-position="ATA"] {
+      background-color: #e57373;
     }
 
-    .player-position[data-position="TEC"], 
-    .player-position[data-position="T"] {
-      background-color: #607d8b;
-      color: white;
+    .player-position[data-position="TEC"] {
+      background-color: #9575cd;
     }
 
     .player-price {
-      font-size: 12px;
-      color: #666;
+      color: #757575;
     }
 
     .player-actions {
       display: flex;
       align-items: center;
-      flex-shrink: 0;
-    }
-    
-    .player-actions button {
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-      width: 36px;
-      height: 36px;
-      line-height: 36px;
-    }
-    
-    .player-actions mat-icon {
-      font-size: 20px;
-      width: 20px;
-      height: 20px;
     }
 
     .empty-results {
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
       padding: 32px 16px;
-      color: #666;
       text-align: center;
+      color: #757575;
     }
 
     .empty-results mat-icon {
@@ -432,7 +396,6 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
       height: 48px;
       width: 48px;
       margin-bottom: 16px;
-      color: #bbbbbb;
     }
 
     @media (max-width: 768px) {

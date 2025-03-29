@@ -144,7 +144,7 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
 
     .section-title {
       margin: 0 0 16px 0;
-      color: #3f51b5;
+      color: var(--primary-color);
       font-size: 20px;
       font-weight: 500;
     }
@@ -190,9 +190,9 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
 
     .team-panel {
       margin-bottom: 16px !important; /* Espaçamento reduzido pela metade */
-      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      box-shadow: var(--shadow-sm);
       background-color: white;
-      border-radius: 8px;
+      border-radius: var(--border-radius);
       overflow: hidden;
       transition: box-shadow 0.3s, transform 0.2s;
       position: relative;
@@ -215,24 +215,24 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
     }
     
     .team-panel:hover {
-      box-shadow: 0 4px 12px rgba(0,0,0,0.16);
+      box-shadow: var(--shadow-md);
       transform: translateY(-2px);
     }
 
     .current-team::before {
-      background-color: #3f51b5;
+      background-color: var(--primary-color);
     }
 
     .current-team {
-      background-color: #f5f7ff;
+      background-color: var(--light-color);
     }
 
     .next-team::before {
-      background-color: #ff4081;
+      background-color: var(--accent-color);
     }
 
     .next-team {
-      background-color: #fff5f8;
+      background-color: rgba(221, 217, 42, 0.1);
     }
 
     ::ng-deep .team-panel .mat-expansion-panel-header {
@@ -243,7 +243,7 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
     }
 
     ::ng-deep .current-team .mat-expansion-panel-header {
-      background-color: rgba(63, 81, 181, 0.05);
+      background-color: rgba(45, 42, 50, 0.05);
     }
 
     ::ng-deep .next-team .mat-expansion-panel-header {

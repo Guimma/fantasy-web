@@ -202,7 +202,7 @@ import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './mode
         
         h2 {
           margin-bottom: 1rem;
-          color: #f44336;
+          color: var(--warn-color);
         }
       }
     }
@@ -212,8 +212,8 @@ import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './mode
       flex-direction: column;
       padding: 16px;
       position: relative;
-      background-color: #f5f5f5;
-      border-radius: 8px;
+      background-color: var(--light-color);
+      border-radius: var(--border-radius);
     }
 
     .draft-header {
@@ -223,8 +223,8 @@ import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './mode
       margin-bottom: 16px;
       background: white;
       padding: 16px;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow-sm);
     }
 
     .draft-title {
@@ -237,7 +237,7 @@ import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './mode
         margin: 0;
         font-size: 24px;
         font-weight: 500;
-        color: #3f51b5;
+        color: var(--primary-color);
       }
     }
 
@@ -254,8 +254,8 @@ import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './mode
     }
 
     .draft-status-in-progress {
-      background-color: #2196f3;
-      color: white;
+      background-color: var(--accent-color);
+      color: var(--primary-color);
     }
 
     .draft-status-finished {
@@ -270,15 +270,15 @@ import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './mode
     }
     
     .timer div {
-      background-color: #3f51b5;
+      background-color: var(--primary-color);
       color: white;
       padding: 8px 16px;
-      border-radius: 4px;
+      border-radius: var(--border-radius);
       font-size: 16px;
       font-weight: 500;
       min-width: 150px;
       text-align: center;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      box-shadow: var(--shadow-sm);
     }
 
     .timer-warning {
@@ -287,7 +287,7 @@ import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './mode
     }
 
     .timer-expired {
-      background-color: #f44336 !important;
+      background-color: var(--warn-color) !important;
       animation: urgent-pulse 0.5s infinite;
       font-weight: 700;
     }
@@ -312,7 +312,7 @@ import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './mode
     }
 
     .reset-button {
-      background-color: #d32f2f;
+      background-color: var(--warn-color);
       margin-left: 16px;
     }
 
@@ -322,7 +322,7 @@ import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './mode
       gap: 16px;
       overflow: hidden;
       padding: 0 16px 16px;
-      background-color: #f0f2f5;
+      background-color: var(--background-color);
       height: calc(100vh - 300px);
       min-height: 600px;
     }
@@ -330,8 +330,8 @@ import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './mode
     .column {
       flex: 1;
       background: white;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow-md);
       display: flex;
       flex-direction: column;
       border: 1px solid rgba(0,0,0,0.06);
@@ -369,6 +369,55 @@ import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './mode
       justify-content: center;
       align-items: center;
       z-index: 100;
+    }
+
+    /* Correções para os campos de input */
+    ::ng-deep .mat-mdc-form-field {
+      width: 100%;
+    }
+
+    ::ng-deep .mat-mdc-form-field-infix {
+      display: flex;
+      align-items: center;
+    }
+
+    ::ng-deep .mat-mdc-form-field .mat-mdc-text-field-wrapper {
+      background-color: transparent !important;
+    }
+
+    ::ng-deep .mat-mdc-form-field .mat-mdc-text-field-wrapper.mdc-text-field--outlined .mat-mdc-form-field-infix {
+      padding-top: 16px;
+      padding-bottom: 16px;
+    }
+
+    ::ng-deep .mat-mdc-form-field .mdc-notched-outline__notch {
+      border-right: none;
+    }
+
+    ::ng-deep .mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__leading,
+    ::ng-deep .mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__notch,
+    ::ng-deep .mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__trailing {
+      border-color: var(--primary-color);
+    }
+
+    ::ng-deep .mdc-text-field--outlined:not(.mdc-text-field--disabled):hover .mdc-notched-outline__leading,
+    ::ng-deep .mdc-text-field--outlined:not(.mdc-text-field--disabled):hover .mdc-notched-outline__notch,
+    ::ng-deep .mdc-text-field--outlined:not(.mdc-text-field--disabled):hover .mdc-notched-outline__trailing {
+      border-color: var(--accent-color);
+    }
+
+    ::ng-deep .mat-mdc-form-field.mat-focused:not(.mat-form-field-invalid) .mdc-notched-outline__leading,
+    ::ng-deep .mat-mdc-form-field.mat-focused:not(.mat-form-field-invalid) .mdc-notched-outline__notch,
+    ::ng-deep .mat-mdc-form-field.mat-focused:not(.mat-form-field-invalid) .mdc-notched-outline__trailing {
+      border-color: var(--accent-color) !important;
+    }
+    
+    ::ng-deep .mat-mdc-form-field-label {
+      color: var(--primary-color) !important;
+    }
+
+    ::ng-deep .mat-mdc-form-field.mat-focused .mat-mdc-form-field-label {
+      color: var(--accent-color) !important;
     }
 
     @media (max-width: 1200px) {
