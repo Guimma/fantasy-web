@@ -45,7 +45,9 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
             cdkDropList
             [cdkDropListData]="position"
             (cdkDropListDropped)="onDrop($event, position.id)"
-            [ngClass]="{'position-empty': !getPlayerInPosition(position.id)}"
+            (cdkDropListEntered)="isDraggingOver = true"
+            (cdkDropListExited)="isDraggingOver = false"
+            [ngClass]="{'position-empty': !getPlayerInPosition(position.id), 'position-highlight': isDraggingOver }"
           >
             <div 
               *ngIf="getPlayerInPosition(position.id); let player"
@@ -374,12 +376,21 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
       color: rgba(255, 255, 255, 0.8);
       margin-top: 2px;
     }
+    
+    /* Estilo para destacar posições durante o arrasto */
+    .player-position.position-highlight {
+      background-color: rgba(255, 255, 255, 0.4);
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+      border: 2px dashed white;
+    }
   `
 })
 export class SoccerFieldComponent {
   @Input() formationPositions: FormationPosition[] = [];
   @Input() players: MyTeamPlayer[] = [];
   @Output() playerDropped = new EventEmitter<{player: MyTeamPlayer, positionId: string}>();
+  
+  isDraggingOver = false;
   
   constructor(private teamLogoService: TeamLogoService) {}
   
@@ -389,7 +400,9 @@ export class SoccerFieldComponent {
     }
     
     const player = event.item.data as MyTeamPlayer;
+    console.log('Jogador arrastado para posição:', player, positionId);
     this.playerDropped.emit({player, positionId});
+    this.isDraggingOver = false;
   }
   
   getPlayerInPosition(positionId: string): MyTeamPlayer | undefined {

@@ -100,11 +100,12 @@ import { MyTeam, MyTeamPlayer, LineupPlayer, Formation, FormationPosition, FORMA
               <div class="players-container">
                 <mat-card>
                   <mat-card-header>
-                    <mat-card-title>Jogadores Disponíveis</mat-card-title>
+                    <mat-card-title class="squad-title">Meu Elenco</mat-card-title>
                   </mat-card-header>
                   <mat-card-content>
                     <app-player-list
                       [players]="myTeam.players"
+                      [draggable]="true"
                       (addPlayer)="addPlayerToLineup($event)"
                       (removePlayer)="removePlayerFromLineup($event)"
                       (dropPlayer)="onPlayerListDrop($event)">
@@ -171,6 +172,13 @@ import { MyTeam, MyTeamPlayer, LineupPlayer, Formation, FormationPosition, FORMA
       align-items: center;
     }
     
+    .page-header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--primary-color);
+      margin: 0;
+    }
+    
     .loading-spinner {
       display: flex;
       align-items: center;
@@ -198,6 +206,7 @@ import { MyTeam, MyTeamPlayer, LineupPlayer, Formation, FormationPosition, FORMA
       display: flex;
       gap: 20px;
       margin-bottom: 20px;
+      width: 100%;
     }
     
     .field-container {
@@ -208,6 +217,21 @@ import { MyTeam, MyTeamPlayer, LineupPlayer, Formation, FormationPosition, FORMA
     .players-container {
       flex: 1;
       min-width: 300px;
+      max-width: 450px;
+    }
+    
+    .players-container mat-card {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      width: 100%;
+    }
+    
+    .players-container mat-card-content {
+      flex: 1;
+      display: flex;
+      overflow: visible;
+      padding-bottom: 16px !important;
     }
     
     .actions-container {
@@ -259,6 +283,40 @@ import { MyTeam, MyTeamPlayer, LineupPlayer, Formation, FormationPosition, FORMA
         align-items: flex-start;
       }
     }
+
+    /* Fix for vertical line in inputs */
+    ::ng-deep .mat-mdc-form-field .mdc-notched-outline__notch {
+      border-right: none !important;
+    }
+    
+    ::ng-deep .mat-form-field-outline-start,
+    ::ng-deep .mat-form-field-outline-gap,
+    ::ng-deep .mat-form-field-outline-end {
+      border-width: 1px !important;
+    }
+    
+    ::ng-deep .mat-form-field-outline-gap {
+      border-right: none !important;
+    }
+    
+    ::ng-deep .mdc-notched-outline__notch {
+      border-right-style: none !important;
+      border-right-width: 0 !important;
+    }
+    
+    ::ng-deep .mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__leading,
+    ::ng-deep .mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__notch,
+    ::ng-deep .mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__trailing {
+      border-color: var(--primary-color);
+    }
+
+    .players-container mat-card-title.squad-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--primary-color);
+      margin-bottom: 16px;
+      letter-spacing: 0.5px;
+    }
   `
 })
 export class MyTeamComponent implements OnInit {
@@ -288,6 +346,11 @@ export class MyTeamComponent implements OnInit {
       .subscribe({
         next: (team) => {
           this.myTeam = team;
+          console.log('Time carregado:', this.myTeam);
+          if (team?.players) {
+            console.log('Jogadores carregados:', team.players.length);
+            console.log('Exemplo de jogador:', team.players[0]);
+          }
           if (team) {
             this.updateFormationPositions();
           }

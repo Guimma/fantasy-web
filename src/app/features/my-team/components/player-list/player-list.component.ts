@@ -24,45 +24,29 @@ import { MyTeamPlayer } from '../../models/my-team.model';
   ],
   template: `
     <div class="players-list-container">
-      <div class="filters">
-        <mat-form-field appearance="outline" class="filter-field">
-          <mat-label>Filtrar por posição</mat-label>
-          <mat-select [(value)]="positionFilter" (selectionChange)="applyFilters()">
-            <mat-option value="all">Todas</mat-option>
-            <mat-option value="GOL">Goleiros</mat-option>
-            <mat-option value="ZAG">Zagueiros</mat-option>
-            <mat-option value="LAT">Laterais</mat-option>
-            <mat-option value="MEI">Meio-campistas</mat-option>
-            <mat-option value="ATA">Atacantes</mat-option>
-            <mat-option value="TEC">Técnicos</mat-option>
-          </mat-select>
-        </mat-form-field>
-        
-        <mat-form-field appearance="outline" class="filter-field">
-          <mat-label>Buscar jogador</mat-label>
-          <input matInput [(ngModel)]="searchTerm" (input)="applyFilters()">
-          <mat-icon matSuffix>search</mat-icon>
-        </mat-form-field>
-      </div>
-      
-      <div class="players-list" cdkDropList [cdkDropListData]="filteredPlayers" (cdkDropListDropped)="dropPlayer.emit($event)">
-        <div 
-          *ngFor="let player of filteredPlayers" 
-          class="player-list-item"
-          [ngClass]="{'in-lineup': player.inLineup}"
-          cdkDrag
-          [cdkDragData]="player"
-        >
-          <app-player-card
-            [player]="player"
-            (add)="addPlayer.emit(player)"
-            (remove)="removePlayer.emit(player)"
-          ></app-player-card>
-        </div>
-        
-        <div *ngIf="filteredPlayers.length === 0" class="no-players">
-          <mat-icon>sentiment_dissatisfied</mat-icon>
-          <p>Nenhum jogador encontrado.</p>
+      <div class="players-list" cdkDropList [cdkDropListData]="players" (cdkDropListDropped)="dropPlayer.emit($event)">
+        <div *ngFor="let positionGroup of playersByPosition" class="position-group">
+          <div class="position-header">
+            <span>{{ getPositionName(positionGroup.position) }}</span>
+          </div>
+          
+          <div class="player-cards-container">
+            <div *ngFor="let player of positionGroup.players" 
+              class="player-list-item"
+              [ngClass]="{'in-lineup': player.inLineup}"
+            >
+              <app-player-card
+                [player]="player"
+                [draggable]="draggable"
+                (add)="addPlayer.emit(player)"
+                (remove)="removePlayer.emit(player)">
+              </app-player-card>
+            </div>
+          </div>
+          
+          <div *ngIf="positionGroup.players.length === 0" class="no-players-position">
+            <p>Nenhum jogador nesta posição</p>
+          </div>
         </div>
       </div>
     </div>
@@ -72,29 +56,55 @@ import { MyTeamPlayer } from '../../models/my-team.model';
       display: flex;
       flex-direction: column;
       width: 100%;
-    }
-    
-    .filters {
-      display: flex;
-      gap: var(--spacing-md);
-      margin-bottom: var(--spacing-md);
-    }
-    
-    .filter-field {
-      flex: 1;
+      height: 100%;
     }
     
     .players-list {
       display: flex;
       flex-direction: column;
       gap: var(--spacing-md);
-      max-height: 500px;
-      overflow-y: auto;
       padding: var(--spacing-sm);
+      width: 100%;
+      height: 100%;
+    }
+    
+    .position-group {
+      margin-bottom: 16px;
+      width: 100%;
+    }
+    
+    .position-header {
+      background-color: var(--light-color);
+      padding: 8px 12px;
+      font-weight: 500;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      color: var(--primary-color);
+      border-left: 4px solid var(--primary-color);
+      width: 100%;
+      box-sizing: border-box;
+    }
+    
+    .player-cards-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      width: 100%;
     }
     
     .player-list-item {
       transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+      margin-bottom: 0;
+      position: relative;
+      width: calc(50% - 4px);
+      box-sizing: border-box;
+    }
+    
+    /* Add responsive layout for smaller screens */
+    @media (max-width: 480px) {
+      .player-list-item {
+        width: 100%;
+      }
     }
     
     .player-list-item.cdk-drag-preview {
@@ -103,6 +113,21 @@ import { MyTeamPlayer } from '../../models/my-team.model';
     
     .player-list-item.cdk-drag-placeholder {
       opacity: 0;
+    }
+    
+    .player-list-item.draggable {
+      cursor: move;
+    }
+    
+    .drag-handle {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      z-index: 10;
+      color: var(--primary-color);
+      background-color: rgba(255,255,255,0.7);
+      border-radius: 50%;
+      padding: 2px;
     }
     
     .no-players {
@@ -121,40 +146,118 @@ import { MyTeamPlayer } from '../../models/my-team.model';
       margin-bottom: var(--spacing-md);
       opacity: 0.5;
     }
+    
+    .no-players-position {
+      padding: 8px;
+      color: var(--text-secondary);
+      font-style: italic;
+      font-size: 14px;
+    }
   `
 })
 export class PlayerListComponent {
   @Input() players: MyTeamPlayer[] = [];
+  @Input() draggable = false;
   @Output() addPlayer = new EventEmitter<MyTeamPlayer>();
   @Output() removePlayer = new EventEmitter<MyTeamPlayer>();
   @Output() dropPlayer = new EventEmitter<any>();
   
-  positionFilter = 'all';
-  searchTerm = '';
-  filteredPlayers: MyTeamPlayer[] = [];
+  playersByPosition: { position: string, players: MyTeamPlayer[] }[] = [];
+  
+  // Ordem das posições para exibição
+  private positionOrder = ['GOL', 'ZAG', 'LAT', 'MEI', 'ATA', 'TEC'];
   
   ngOnChanges(): void {
-    this.applyFilters();
+    this.groupPlayersByPosition();
   }
   
-  applyFilters(): void {
-    this.filteredPlayers = this.players.filter(player => {
-      // Filter by position
-      if (this.positionFilter !== 'all' && player.posicao !== this.positionFilter) {
-        return false;
-      }
+  private groupPlayersByPosition(): void {
+    // Check if there are any players
+    if (!this.players || this.players.length === 0) {
+      console.log('No players to group', this.players);
+      this.playersByPosition = this.positionOrder.map(position => ({
+        position,
+        players: []
+      }));
+      return;
+    }
+    
+    console.log('Agrupando jogadores por posição:', this.players.length, 'jogadores');
+    console.log('Exemplo de jogador:', this.players[0]);
+    
+    // Inicializa o array de jogadores por posição
+    this.playersByPosition = this.positionOrder.map(position => {
+      // Find players matching this position
+      const playersInPosition = this.players.filter(player => 
+        this.getPositionCode(player) === position
+      );
       
-      // Filter by search term
-      if (this.searchTerm.trim() !== '') {
-        const searchTermLower = this.searchTerm.trim().toLowerCase();
-        return (
-          player.nome.toLowerCase().includes(searchTermLower) ||
-          player.apelido.toLowerCase().includes(searchTermLower) ||
-          player.clube.toLowerCase().includes(searchTermLower)
-        );
-      }
-      
-      return true;
+      console.log(`Posição ${position}:`, playersInPosition.length, 'jogadores');
+      return {
+        position,
+        players: playersInPosition
+      };
     });
+  }
+  
+  // Helper function to determine the position code
+  private getPositionCode(player: MyTeamPlayer): string {
+    // Check different properties that might contain position info
+    const posicao = player.posicao;
+    const posicaoAbreviacao = player.posicaoAbreviacao;
+    
+    console.log(`Verificando posição para ${player.apelido}: posicao=${posicao}, abreviacao=${posicaoAbreviacao}`);
+    
+    // First, check if posicao is one of our position codes
+    if (posicao && this.positionOrder.includes(posicao)) {
+      return posicao;
+    }
+    
+    // If posicaoAbreviacao is available, use that
+    if (posicaoAbreviacao && this.positionOrder.includes(posicaoAbreviacao)) {
+      return posicaoAbreviacao;
+    }
+    
+    // Map full position names to codes
+    if (posicao) {
+      switch(posicao.toUpperCase()) {
+        case 'GOLEIRO': return 'GOL';
+        case 'ZAGUEIRO': return 'ZAG';
+        case 'LATERAL': return 'LAT';
+        case 'MEIA': 
+        case 'MEIO-CAMPO': 
+        case 'MEIO-CAMPISTA': return 'MEI';
+        case 'ATACANTE': return 'ATA';
+        case 'TÉCNICO': 
+        case 'TECNICO': return 'TEC';
+      }
+    }
+    
+    // Default fallback - use numeric codes from Cartola API if any
+    if (typeof posicao === 'string' || typeof posicao === 'number') {
+      switch(String(posicao)) {
+        case '1': return 'GOL';
+        case '2': return 'LAT';
+        case '3': return 'ZAG';
+        case '4': return 'MEI';
+        case '5': return 'ATA';
+        case '6': return 'TEC';
+      }
+    }
+    
+    console.log(`Não foi possível determinar a posição para ${player.apelido}`);
+    return 'TEC'; // Default fallback
+  }
+  
+  getPositionName(position: string): string {
+    switch (position) {
+      case 'GOL': return 'Goleiros';
+      case 'ZAG': return 'Zagueiros';
+      case 'LAT': return 'Laterais';
+      case 'MEI': return 'Meio-campistas';
+      case 'ATA': return 'Atacantes';
+      case 'TEC': return 'Técnicos';
+      default: return position;
+    }
   }
 } 
