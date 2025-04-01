@@ -54,6 +54,18 @@ import { FooterComponent } from '../core/components/footer/footer.component';
               </mat-card-content>
             </mat-card>
 
+            <mat-card class="dashboard-card clickable-card" matRipple [routerLink]="['/meu-time']">
+              <div class="card-icon-container">
+                <mat-icon class="card-icon">sports_soccer</mat-icon>
+              </div>
+              <mat-card-header>
+                <mat-card-title>Meu Time</mat-card-title>
+              </mat-card-header>
+              <mat-card-content>
+                <p>Configure a escalação do seu time para a próxima rodada.</p>
+              </mat-card-content>
+            </mat-card>
+
             <mat-card class="dashboard-card disabled-card" matTooltip="Em breve">
               <div class="card-icon-container">
                 <mat-icon class="card-icon">shopping_cart</mat-icon>
@@ -64,18 +76,6 @@ import { FooterComponent } from '../core/components/footer/footer.component';
               <mat-card-content>
                 <p>Compre e venda jogadores para o seu time.</p>
                 <div class="coming-soon-label">Em breve</div>
-              </mat-card-content>
-            </mat-card>
-
-            <mat-card class="dashboard-card clickable-card" matRipple [routerLink]="['/meu-time']">
-              <div class="card-icon-container">
-                <mat-icon class="card-icon">sports_soccer</mat-icon>
-              </div>
-              <mat-card-header>
-                <mat-card-title>Meu Time</mat-card-title>
-              </mat-card-header>
-              <mat-card-content>
-                <p>Configure a escalação do seu time para a próxima rodada.</p>
               </mat-card-content>
             </mat-card>
 

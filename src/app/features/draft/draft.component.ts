@@ -212,7 +212,6 @@ import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './mode
       flex-direction: column;
       padding: 16px;
       position: relative;
-      background-color: var(--light-color);
       border-radius: var(--border-radius);
     }
 

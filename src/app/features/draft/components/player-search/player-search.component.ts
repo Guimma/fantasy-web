@@ -297,7 +297,6 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 12px;
     }
 
     .player-main-info {
