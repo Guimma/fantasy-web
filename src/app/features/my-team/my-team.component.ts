@@ -21,6 +21,7 @@ import { PlayerListComponent } from './components/player-list/player-list.compon
 import { SoccerFieldComponent } from './components/soccer-field/soccer-field.component';
 import { TeamNameEditorComponent } from './components/team-name-editor/team-name-editor.component';
 import { FormationSelectorComponent } from './components/formation-selector/formation-selector.component';
+import { PlayerCardComponent } from './components/player-card/player-card.component';
 
 // Modelos e Serviço
 import { MyTeamService } from './services/my-team.service';
@@ -45,7 +46,8 @@ import { MyTeam, MyTeamPlayer, LineupPlayer, Formation, FormationPosition, FORMA
     PlayerListComponent,
     SoccerFieldComponent,
     TeamNameEditorComponent,
-    FormationSelectorComponent
+    FormationSelectorComponent,
+    PlayerCardComponent
   ],
   template: `
     <div class="app-container">
@@ -86,6 +88,9 @@ import { MyTeam, MyTeamPlayer, LineupPlayer, Formation, FormationPosition, FORMA
               <!-- Campo de futebol e escalação -->
               <div class="field-container">
                 <mat-card>
+                  <mat-card-header>
+                    <mat-card-title class="squad-title">Campo de Jogo</mat-card-title>
+                  </mat-card-header>
                   <mat-card-content>
                     <app-soccer-field
                       [formationPositions]="currentFormationPositions"
@@ -103,8 +108,33 @@ import { MyTeam, MyTeamPlayer, LineupPlayer, Formation, FormationPosition, FORMA
                     <mat-card-title class="squad-title">Meu Elenco</mat-card-title>
                   </mat-card-header>
                   <mat-card-content>
+                    <!-- Departamento Médico (Injured Players) -->
+                    <div *ngIf="getInjuredPlayers().length > 0" class="medical-department">
+                      <div class="section-header">
+                        <mat-icon>healing</mat-icon>
+                        <span>Departamento Médico</span>
+                      </div>
+                      
+                      <div class="player-cards-container">
+                        <div *ngFor="let player of getInjuredPlayers()" 
+                          class="player-list-item"
+                          [ngClass]="{'in-lineup': player.inLineup}"
+                        >
+                          <app-player-card
+                            [player]="player"
+                            [draggable]="false"
+                            (add)="addPlayerToLineup($event)"
+                            (remove)="removePlayerFromLineup($event)">
+                          </app-player-card>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <mat-divider *ngIf="getInjuredPlayers().length > 0" class="section-divider"></mat-divider>
+                    
+                    <!-- Lista de jogadores regulares -->
                     <app-player-list
-                      [players]="myTeam.players"
+                      [players]="getActivePlayersForList()"
                       [draggable]="true"
                       (addPlayer)="addPlayerToLineup($event)"
                       (removePlayer)="removePlayerFromLineup($event)"
@@ -214,6 +244,17 @@ import { MyTeam, MyTeamPlayer, LineupPlayer, Formation, FormationPosition, FORMA
       min-width: 0;
     }
     
+    .field-container mat-card-content {
+      justify-content: center;
+      display: flex;
+    }
+    
+    .field-container app-soccer-field {
+      width: 100%;
+      max-width: 600px;
+      height: auto;
+    }
+    
     .players-container {
       flex: 1;
       min-width: 300px;
@@ -223,13 +264,14 @@ import { MyTeam, MyTeamPlayer, LineupPlayer, Formation, FormationPosition, FORMA
     .players-container mat-card {
       display: flex;
       flex-direction: column;
-      flex: 1;
+      height: 100%;
       width: 100%;
     }
     
     .players-container mat-card-content {
       flex: 1;
       display: flex;
+      flex-direction: column;
       overflow: visible;
       padding-bottom: 16px !important;
     }
@@ -282,6 +324,10 @@ import { MyTeam, MyTeamPlayer, LineupPlayer, Formation, FormationPosition, FORMA
         flex-direction: column;
         align-items: flex-start;
       }
+      
+      .players-container {
+        max-width: 100%;
+      }
     }
 
     /* Fix for vertical line in inputs */
@@ -316,6 +362,50 @@ import { MyTeam, MyTeamPlayer, LineupPlayer, Formation, FormationPosition, FORMA
       color: var(--primary-color);
       margin-bottom: 16px;
       letter-spacing: 0.5px;
+    }
+    
+    .medical-department {
+      margin-bottom: 16px;
+      width: 100%;
+    }
+    
+    .section-header {
+      background-color: #ffebee;
+      color: #d32f2f;
+      border-left: 4px solid #f44336;
+      padding: 8px 12px;
+      font-weight: 500;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      width: 100%;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .section-header mat-icon {
+      font-size: 18px;
+      height: 18px;
+      width: 18px;
+    }
+    
+    .player-cards-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      width: 100%;
+    }
+    
+    .player-list-item {
+      width: calc(50% - 4px);
+      box-sizing: border-box;
+    }
+    
+    @media (max-width: 480px) {
+      .player-list-item {
+        width: 100%;
+      }
     }
   `
 })
@@ -537,5 +627,28 @@ export class MyTeamComponent implements OnInit {
     });
     
     this.saveLineup();
+  }
+
+  // Method to count players by status
+  countPlayersByStatus(status: string): number {
+    if (!this.myTeam?.players) return 0;
+    
+    if (status === 'active') {
+      // Count all players except injured ones
+      return this.myTeam.players.filter(player => player.status !== 'Contundido').length;
+    }
+    
+    return this.myTeam.players.filter(player => player.status === status).length;
+  }
+
+  // New methods for the three-column layout
+  getActivePlayersForList(): MyTeamPlayer[] {
+    if (!this.myTeam) return [];
+    return this.myTeam.players.filter(p => p.status !== 'Contundido');
+  }
+  
+  getInjuredPlayers(): MyTeamPlayer[] {
+    if (!this.myTeam) return [];
+    return this.myTeam.players.filter(p => p.status === 'Contundido');
   }
 } 

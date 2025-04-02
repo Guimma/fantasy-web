@@ -6,6 +6,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
+import { MatDividerModule } from '@angular/material/divider';
 import { PlayerCardComponent } from '../player-card/player-card.component';
 import { MyTeamPlayer } from '../../models/my-team.model';
 
@@ -20,11 +21,13 @@ import { MyTeamPlayer } from '../../models/my-team.model';
     MatSelectModule,
     MatInputModule,
     MatIconModule,
+    MatDividerModule,
     PlayerCardComponent
   ],
   template: `
     <div class="players-list-container">
       <div class="players-list" cdkDropList [cdkDropListData]="players" (cdkDropListDropped)="dropPlayer.emit($event)">
+        <!-- Regular Players by Position -->
         <div *ngFor="let positionGroup of playersByPosition" class="position-group">
           <div class="position-header">
             <span>{{ getPositionName(positionGroup.position) }}</span>
@@ -83,6 +86,9 @@ import { MyTeamPlayer } from '../../models/my-team.model';
       border-left: 4px solid var(--primary-color);
       width: 100%;
       box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
     
     .player-cards-container {
@@ -183,7 +189,6 @@ export class PlayerListComponent {
     }
     
     console.log('Agrupando jogadores por posição:', this.players.length, 'jogadores');
-    console.log('Exemplo de jogador:', this.players[0]);
     
     // Inicializa o array de jogadores por posição
     this.playersByPosition = this.positionOrder.map(position => {
@@ -205,8 +210,6 @@ export class PlayerListComponent {
     // Check different properties that might contain position info
     const posicao = player.posicao;
     const posicaoAbreviacao = player.posicaoAbreviacao;
-    
-    console.log(`Verificando posição para ${player.apelido}: posicao=${posicao}, abreviacao=${posicaoAbreviacao}`);
     
     // First, check if posicao is one of our position codes
     if (posicao && this.positionOrder.includes(posicao)) {
@@ -249,15 +252,17 @@ export class PlayerListComponent {
     return 'TEC'; // Default fallback
   }
   
-  getPositionName(position: string): string {
-    switch (position) {
-      case 'GOL': return 'Goleiros';
-      case 'ZAG': return 'Zagueiros';
-      case 'LAT': return 'Laterais';
-      case 'MEI': return 'Meio-campistas';
-      case 'ATA': return 'Atacantes';
-      case 'TEC': return 'Técnicos';
-      default: return position;
-    }
+  // Get the position name for display
+  getPositionName(positionCode: string): string {
+    const positionNames: Record<string, string> = {
+      'GOL': 'Goleiros',
+      'ZAG': 'Zagueiros',
+      'LAT': 'Laterais',
+      'MEI': 'Meio-Campistas',
+      'ATA': 'Atacantes',
+      'TEC': 'Técnicos'
+    };
+    
+    return positionNames[positionCode] || positionCode;
   }
 } 

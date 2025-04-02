@@ -1,12 +1,14 @@
 import { Component } from '@angular/core';
-import { MatIconModule } from '@angular/material/icon';
+import { MatIconModule, MatIconRegistry } from '@angular/material/icon';
 import { RouterModule } from '@angular/router';
 import { NgIf } from '@angular/common';
+import { DomSanitizer } from '@angular/platform-browser';
+import { HttpClientModule } from '@angular/common/http';
 
 @Component({
   selector: 'app-footer',
   standalone: true,
-  imports: [MatIconModule, RouterModule, NgIf],
+  imports: [MatIconModule, RouterModule, NgIf, HttpClientModule],
   template: `
     <footer class="footer">
       <div class="footer-content">
@@ -48,7 +50,7 @@ import { NgIf } from '@angular/common';
               <span>lucas&#64;campregher.com</span>
             </a>
             <a href="https://github.com/Guimma/" target="_blank" class="contact-link">
-              <mat-icon>code</mat-icon>
+              <mat-icon svgIcon="github"></mat-icon>
               <span>GitHub</span>
             </a>
           </div>
@@ -182,6 +184,19 @@ import { NgIf } from '@angular/common';
       font-size: 18px;
       width: 18px;
       height: 18px;
+      color: white; /* Make icons visible against the background */
+    }
+
+    .contact-link:hover mat-icon {
+      color: var(--secondary-color); /* Change color on hover to match parent hover state */
+    }
+
+    .contact-link mat-icon[svgIcon="github"] {
+      fill: white; /* Set fill color for SVG icon */
+    }
+
+    .contact-link:hover mat-icon[svgIcon="github"] {
+      fill: var(--secondary-color); /* Change fill color on hover */
     }
 
     .footer-bottom {
@@ -222,6 +237,8 @@ import { NgIf } from '@angular/common';
 export class FooterComponent {
   currentYear = new Date().getFullYear();
   showFallbackLogo = false;
+  
+  constructor() {}
   
   handleLogoError(event: any): void {
     console.warn('Logo não encontrado em assets/images/logo.png');

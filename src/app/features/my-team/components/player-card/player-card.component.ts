@@ -18,7 +18,16 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
     DragDropModule
   ],
   template: `
-    <div class="player-card" [ngClass]="{'in-lineup': player.inLineup, 'draggable': draggable}" cdkDrag [cdkDragData]="player" *ngIf="draggable; else nonDraggable">
+    <div class="player-card" 
+         [ngClass]="{
+           'in-lineup': player.inLineup, 
+           'draggable': draggable,
+           'player-injured': isInjured(),
+           'player-doubtful': isDoubtful(),
+           'player-probable': isProbable(),
+           'player-null': isNull()
+         }" 
+         cdkDrag [cdkDragData]="player" *ngIf="draggable; else nonDraggable">
       <div class="player-card-content">
         <div class="team-logo">
           <img [src]="getClubShieldUrl()" [alt]="player.clube" class="team-logo-img">
@@ -31,6 +40,9 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
             </span>
             <span class="player-price">C$ {{ (player.preco || 0).toFixed(1) }}</span>
           </div>
+          <div *ngIf="player.status" class="player-status" [attr.data-status]="player.status">
+            {{ getStatusLabel(player.status) }}
+          </div>
         </div>
         
         <div class="drag-handle">
@@ -40,7 +52,14 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
     </div>
     
     <ng-template #nonDraggable>
-      <div class="player-card" [ngClass]="{'in-lineup': player.inLineup}">
+      <div class="player-card" 
+           [ngClass]="{
+             'in-lineup': player.inLineup,
+             'player-injured': isInjured(),
+             'player-doubtful': isDoubtful(),
+             'player-probable': isProbable(),
+             'player-null': isNull()
+           }">
         <div class="player-card-content">
           <div class="team-logo">
             <img [src]="getClubShieldUrl()" [alt]="player.clube" class="team-logo-img">
@@ -53,9 +72,12 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
               </span>
               <span class="player-price">C$ {{ (player.preco || 0).toFixed(1) }}</span>
             </div>
+            <div *ngIf="player.status" class="player-status" [attr.data-status]="player.status">
+              {{ getStatusLabel(player.status) }}
+            </div>
           </div>
           
-          <div class="player-actions">
+          <div class="player-actions" *ngIf="!isInjured()">
             <button 
               mat-icon-button 
               color="primary" 
@@ -110,6 +132,26 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
       background-color: var(--primary-light);
       border-left: 3px solid var(--primary-color);
     }
+    
+    .player-card.player-injured {
+      background-color: #ffebee;
+      border-left: 3px solid #f44336;
+    }
+    
+    .player-card.player-doubtful {
+      background-color: #fff8e1;
+      border-left: 3px solid #ffc107;
+    }
+    
+    .player-card.player-probable {
+      background-color: #e8f5e9;
+      border-left: 3px solid #4caf50;
+    }
+    
+    .player-card.player-null {
+      background-color: #f5f5f5;
+      border-left: 3px solid #9e9e9e;
+    }
 
     .player-card-content {
       display: flex;
@@ -151,6 +193,40 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
       align-items: center;
       gap: 8px;
       font-size: 12px;
+    }
+    
+    .player-status {
+      margin-top: 4px;
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      display: inline-block;
+      font-weight: 500;
+    }
+    
+    .player-status[data-status="Contundido"] {
+      background-color: #ffebee;
+      color: #d32f2f;
+    }
+    
+    .player-status[data-status="Dúvida"] {
+      background-color: #fff8e1;
+      color: #ff8f00;
+    }
+    
+    .player-status[data-status="Suspenso"] {
+      background-color: #e8eaf6;
+      color: #3949ab;
+    }
+    
+    .player-status[data-status="Provável"] {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+    }
+    
+    .player-status[data-status="Nulo"] {
+      background-color: #f5f5f5;
+      color: #757575;
     }
     
     .player-actions {
@@ -251,20 +327,26 @@ export class PlayerCardComponent {
       }
     }
     
-    // Try numeric codes (from Cartola API)
-    const numericMap: Record<string, string> = {
-      '1': 'GOL',
-      '2': 'LAT',
-      '3': 'ZAG',
-      '4': 'MEI',
-      '5': 'ATA',
-      '6': 'TEC'
-    };
-    
-    if (numericMap[position]) {
-      return numericMap[position];
-    }
-    
     return '';
+  }
+  
+  getStatusLabel(status: string): string {
+    return status || '';
+  }
+  
+  isInjured(): boolean {
+    return this.player.status === 'Contundido';
+  }
+  
+  isDoubtful(): boolean {
+    return this.player.status === 'Dúvida';
+  }
+  
+  isProbable(): boolean {
+    return this.player.status === 'Provável';
+  }
+  
+  isNull(): boolean {
+    return this.player.status === 'Nulo';
   }
 } 
