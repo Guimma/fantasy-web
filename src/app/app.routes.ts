@@ -21,5 +21,20 @@ export const routes: Routes = [
     loadComponent: () => import('./features/draft/draft.component').then(m => m.DraftComponent),
     canActivate: [authGuard, adminGuard]
   },
+  {
+    path: 'times',
+    loadComponent: () => import('./features/times').then(m => m.TimesComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'mercado',
+    loadComponent: () => import('./features/mercado').then(m => m.MercadoComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'meu-time',
+    loadChildren: () => import('./features/my-team/my-team.module').then(m => m.MyTeamModule),
+    canActivate: [authGuard]
+  },
   { path: '**', redirectTo: '/home' }
 ];

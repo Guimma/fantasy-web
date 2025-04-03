@@ -106,7 +106,7 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
                 <div *ngFor="let player of getPlayersByPosition(position)" class="player-card">
                   <div class="player-card-content">
                     <div class="team-logo">
-                      <img [src]="getTeamLogo(player.clube)" [alt]="player.clube || 'Time'" class="team-logo-img">
+                      <img [src]="getTeamLogo(player.clube)" [alt]="player.clube || 'Time'" class="team-logo-img" (error)="handleLogoError($event)">
                     </div>
                     <div class="player-info">
                       <div class="player-name">{{ player.apelido || player.nome || 'Sem nome' }}</div>
@@ -139,7 +139,7 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
 
     .section-title {
       margin: 0 0 16px 0;
-      color: #3f51b5;
+      color: var(--primary-color);
       font-size: 20px;
       font-weight: 500;
     }
@@ -181,10 +181,10 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
     }
 
     .team-badge {
-      background-color: #3f51b5;
+      background-color: var(--primary-color);
       color: white;
       padding: 4px 8px;
-      border-radius: 4px;
+      border-radius: var(--border-radius);
       font-size: 14px;
       font-weight: 500;
     }
@@ -227,7 +227,7 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
       align-items: center;
       padding: 6px 12px;
       border-radius: 16px;
-      background-color: #f5f5f5;
+      background-color: var(--light-color);
       font-size: 14px;
     }
 
@@ -244,12 +244,18 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
     }
 
     .position-complete {
-      background-color: #e8f5e9;
-      color: #2e7d32;
+      background-color: rgba(221, 217, 42, 0.2);
+      color: var(--primary-color);
     }
 
     .position-complete .position-count {
-      background-color: #a5d6a7;
+      background-color: var(--accent-color);
+      color: var(--primary-color);
+    }
+
+    .player-list {
+      display: flex;
+      flex-direction: column;
     }
 
     .player-groups {
@@ -258,150 +264,123 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
       gap: 16px;
     }
 
+    .player-group {
+      display: flex;
+      flex-direction: column;
+    }
+
     .position-title {
       margin: 0 0 8px 0;
-      font-size: 14px;
+      font-size: 15px;
       font-weight: 500;
-      color: #5c6bc0;
+      color: var(--primary-color);
+      padding-bottom: 4px;
+      border-bottom: 1px solid rgba(0,0,0,0.1);
     }
 
     .player-cards {
       display: flex;
-      flex-wrap: wrap;
+      flex-direction: column;
       gap: 8px;
     }
 
     .player-card {
-      margin-bottom: 8px;
-      border-radius: 4px;
+      padding: 8px;
+      border-radius: var(--border-radius);
+      border: 1px solid rgba(0,0,0,0.1);
       background-color: white;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      border: 1px solid rgba(0,0,0,0.06);
-      overflow: hidden;
-      transition: transform 0.15s, box-shadow 0.15s;
+      transition: all 0.2s;
     }
 
     .player-card:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 3px 6px rgba(0,0,0,0.14);
+      background-color: var(--light-color);
+      transform: translateX(4px);
     }
 
     .player-card-content {
       display: flex;
-      padding: 8px;
       align-items: center;
+      gap: 10px;
     }
 
     .team-logo {
-      width: 36px;
-      height: 36px;
+      width: 28px;
+      height: 28px;
       display: flex;
       align-items: center;
       justify-content: center;
-      overflow: hidden;
-      margin-right: 8px;
+      flex-shrink: 0;
     }
 
     .team-logo-img {
-      width: 100%;
-      height: 100%;
+      max-width: 100%;
+      max-height: 100%;
       object-fit: contain;
     }
 
-    .player-position {
-      display: inline-block;
-      padding: 3px 6px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: bold;
-      letter-spacing: 0.5px;
-      color: white;
-      background-color: #aaa;
-      text-transform: uppercase;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-      margin-right: 4px;
-      text-align: center;
-    }
-
-    .player-position[data-position="GOL"] {
-      background-color: #ffeb3b;
-      color: #000;
-    }
-
-    .player-position[data-position="LAT"] {
-      background-color: #4caf50;
-      color: white;
-    }
-
-    .player-position[data-position="ZAG"] {
-      background-color: #2196f3;
-      color: white;
-    }
-
-    .player-position[data-position="MEI"] {
-      background-color: #ff9800;
-      color: #000;
-    }
-
-    .player-position[data-position="ATA"] {
-      background-color: #f44336;
-      color: white;
-    }
-
-    .player-position[data-position="TEC"] {
-      background-color: #607d8b;
-      color: white;
-    }
-
-    .player-position[data-position="SEM"] {
-      background-color: #9e9e9e;
-      color: white;
-    }
-
     .player-info {
-      display: flex;
-      flex-direction: column;
       flex: 1;
+      min-width: 0;
     }
 
     .player-name {
       font-weight: 500;
-      font-size: 14px;
       margin-bottom: 4px;
+      font-size: 14px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
-    
+
     .player-meta {
       display: flex;
-      gap: 8px;
       align-items: center;
+      gap: 8px;
       font-size: 12px;
     }
-    
-    .player-club {
-      font-size: 12px;
-      color: #757575;
+
+    .player-position {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 500;
+      color: white;
+      background-color: var(--primary-color);
+    }
+
+    .player-position[data-position="GOL"] {
+      background-color: #ffb74d;
+    }
+
+    .player-position[data-position="ZAG"] {
+      background-color: #4fc3f7;
+    }
+
+    .player-position[data-position="LAT"] {
+      background-color: #7986cb;
+    }
+
+    .player-position[data-position="MEI"] {
+      background-color: #81c784;
+    }
+
+    .player-position[data-position="ATA"] {
+      background-color: #e57373;
+    }
+
+    .player-position[data-position="TEC"] {
+      background-color: #9575cd;
     }
 
     .player-price {
-      font-size: 13px;
       color: #757575;
-      font-weight: 500;
     }
 
     .empty-position {
-      width: 100%;
-      padding: 12px;
-      text-align: center;
-      font-size: 14px;
-      color: #9e9e9e;
-      background-color: #f5f5f5;
-      border-radius: 4px;
-    }
-
-    @media (max-width: 768px) {
-      .player-card {
-        width: 100%;
-      }
+      color: #757575;
+      font-style: italic;
+      font-size: 13px;
+      padding: 4px 8px;
     }
   `
 })
@@ -501,5 +480,11 @@ export class CurrentTeamComponent {
     };
     
     return positionMap[position] || 'SEM';
+  }
+
+  // Handle logo loading errors
+  handleLogoError(event: any): void {
+    console.warn(`Logo load error for: ${event.target.alt}`);
+    event.target.src = 'assets/clubs/default-team.png';
   }
 } 

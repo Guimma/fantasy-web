@@ -1,0 +1,135 @@
+
+# Plano de Implementação
+
+Após analisar as necessidades e os endpoints disponíveis da API do Cartola, vou propor um plano estruturado para implementar as duas funcionalidades solicitadas.
+
+## Arquitetura Geral
+
+Sugiro adotar uma arquitetura em camadas:
+
+1. **Camada de API/Serviços** - Responsável pela comunicação com APIs externas
+2. **Camada de Modelos** - Definição dos modelos de dados
+3. **Camada de Repositório** - Gerenciamento da persistência de dados
+4. **Camada de Negócios** - Implementação das regras de negócio
+
+## Modelos de Dados Propostos
+
+Recomendo criar os seguintes modelos de dados:
+
+```
+Rodada {
+  id: number
+  nome: string
+  inicio: Date
+  fim: Date
+}
+
+Atleta {
+  id: number
+  apelido: string
+  posicao_id: number
+  clube_id: number
+  foto: string
+  status_id: number (status atual do jogador)
+}
+
+Time {
+  id: number
+  nome: string
+  dono: string
+  atletas: [número dos IDs dos atletas]
+}
+
+PontuacaoRodada {
+  time_id: number
+  rodada_id: number
+  pontuacao_total: number
+  data_calculo: Date
+  atletas_pontuados: [
+    {
+      atleta_id: number
+      pontuacao: number
+      scout: object (estatísticas detalhadas)
+    }
+  ]
+}
+```
+
+## Funcionalidade 1: Cálculo da Pontuação dos Times por Rodada
+
+### Fluxo de implementação:
+
+1. **Serviço de Rodadas**
+   - Método para obter a rodada atual ou uma rodada específica
+   - Método para verificar se uma rodada foi finalizada
+
+2. **Serviço de Pontuação de Atletas**
+   - Método para buscar pontuações de atletas em uma rodada específica
+   - Cache temporário de pontuações para evitar chamadas repetidas à API
+
+3. **Serviço de Cálculo de Pontuação**
+   - Método para calcular a pontuação de um time com base em seus atletas atuais
+   - Método para persistir o resultado do cálculo
+
+4. **Agendador de Tarefas**
+   - Tarefa para verificar periodicamente se a rodada atual foi finalizada
+   - Quando finalizada, disparar o cálculo de pontuação para todos os times
+
+### Persistência:
+- Armazenar o objeto `PontuacaoRodada` completo para cada time em cada rodada
+- Isso garante um histórico imutável mesmo se os times mudarem seus atletas posteriormente
+
+## Funcionalidade 2: Atualização dos Status dos Jogadores
+
+### Fluxo de implementação:
+
+1. **Serviço de Status de Atletas**
+   - Método para obter informações atualizadas de todos os atletas
+   - Método para buscar status específico de um atleta
+
+2. **Padrão de Acesso**
+   - Implementar um padrão Repository para atletas
+   - Sempre buscar o status dos jogadores diretamente da API, sem persistir
+   - Opcionalmente, implementar um cache com tempo de expiração curto (5-10 minutos)
+
+3. **Interface para Consulta**
+   - Métodos para consultar atletas por status
+   - Método para verificar se um atleta está disponível para escalação
+
+### Estratégia de cache:
+- Cache de curta duração para os dados de atletas (máximo 10 minutos)
+- Invalidação do cache quando o mercado abrir/fechar (conforme status da API)
+
+## Fluxos de Integração
+
+### Para pontuação de times:
+1. Verificar fim de rodada (via API ou agendador)
+2. Para cada time no sistema:
+   - Buscar sua lista atual de atletas
+   - Obter pontuações da rodada atual via `/atletas/pontuados/{rodada_id}`
+   - Calcular pontuação total e registrar detalhes por jogador
+   - Persistir no formato `PontuacaoRodada`
+
+### Para status de jogadores:
+1. Ao acessar informações de atletas, sempre consultar a API via `/atletas/mercado`
+2. Manter um cache de curta duração para minimizar requisições
+3. Implementar um listener para mudanças de status do mercado via `/mercado/status`
+4. Invalidar cache quando o status do mercado mudar
+
+## Sugestões adicionais:
+
+1. **Tratamento de Erros**:
+   - Implementar retry pattern para falhas temporárias da API
+   - Registrar logs detalhados para depuração
+
+2. **Monitoramento**:
+   - Registrar métricas de tempo de resposta das APIs
+   - Alertas para falhas recorrentes
+
+3. **Versionamento**:
+   - Manter histórico de alterações nos times para auditoria
+
+Esta abordagem garante que você terá:
+- Pontuações históricas preservadas por rodada
+- Status de atletas sempre atualizados
+- Separação clara entre dados que devem ser persistidos e dados dinâmicos

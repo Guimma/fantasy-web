@@ -1,173 +1,170 @@
 import { Component, OnInit } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
-import { MatTabsModule } from '@angular/material/tabs';
+import { CommonModule } from '@angular/common';
+import { ActivatedRoute } from '@angular/router';
+import { MatCardModule } from '@angular/material/card';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatTableModule } from '@angular/material/table';
+import { MatChipsModule } from '@angular/material/chips';
 
 @Component({
   selector: 'app-liga-detail',
+  standalone: true,
+  imports: [
+    CommonModule,
+    MatCardModule,
+    MatButtonModule,
+    MatIconModule,
+    MatTableModule,
+    MatChipsModule
+  ],
   template: `
     <div class="container">
       <div class="header">
-        <button mat-icon-button (click)="voltar()">
+        <button mat-icon-button color="primary" routerLink="/ligas">
           <mat-icon>arrow_back</mat-icon>
         </button>
-        <h1>{{liga?.nome}}</h1>
-        <div class="status">
-          <mat-chip-list>
-            <mat-chip [color]="liga?.status === 'ativa' ? 'primary' : 'warn'" selected>
-              {{liga?.status}}
-            </mat-chip>
-          </mat-chip-list>
-        </div>
+        <h1>{{ liga?.nome }}</h1>
       </div>
 
-      <mat-card>
-        <mat-card-content>
-          <mat-tab-group>
-            <!-- Informações Gerais -->
-            <mat-tab label="Informações">
-              <div class="info-content">
-                <div class="info-row">
-                  <span class="label">Times:</span>
-                  <span>{{liga?.times}}/{{liga?.maxTimes}}</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Orçamento Inicial:</span>
-                  <span>{{liga?.orcamentoInicial}} dinheiros</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Data de Início:</span>
-                  <span>{{liga?.dataInicio | date}}</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Data de Término:</span>
-                  <span>{{liga?.dataTermino | date}}</span>
+      <div class="details-container">
+        <mat-card>
+          <mat-card-header>
+            <mat-card-title>Informações da Liga</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="info-grid">
+              <div class="info-item">
+                <div class="label">Status</div>
+                <div class="value">
+                  <mat-chip-list>
+                    <mat-chip [color]="liga?.status === 'ativa' ? 'primary' : 'warn'" selected>
+                      {{ liga?.status }}
+                    </mat-chip>
+                  </mat-chip-list>
                 </div>
               </div>
-            </mat-tab>
-
-            <!-- Tabela de Classificação -->
-            <mat-tab label="Classificação">
-              <table mat-table [dataSource]="classificacao">
-                <ng-container matColumnDef="posicao">
-                  <th mat-header-cell *matHeaderCellDef>Pos</th>
-                  <td mat-cell *matCellDef="let row">{{row.posicao}}</td>
-                </ng-container>
-
-                <ng-container matColumnDef="time">
-                  <th mat-header-cell *matHeaderCellDef>Time</th>
-                  <td mat-cell *matCellDef="let row">{{row.time}}</td>
-                </ng-container>
-
-                <ng-container matColumnDef="pontos">
-                  <th mat-header-cell *matHeaderCellDef>Pts</th>
-                  <td mat-cell *matCellDef="let row">{{row.pontos}}</td>
-                </ng-container>
-
-                <ng-container matColumnDef="vitorias">
-                  <th mat-header-cell *matHeaderCellDef>V</th>
-                  <td mat-cell *matCellDef="let row">{{row.vitorias}}</td>
-                </ng-container>
-
-                <ng-container matColumnDef="empates">
-                  <th mat-header-cell *matHeaderCellDef>E</th>
-                  <td mat-cell *matCellDef="let row">{{row.empates}}</td>
-                </ng-container>
-
-                <ng-container matColumnDef="derrotas">
-                  <th mat-header-cell *matHeaderCellDef>D</th>
-                  <td mat-cell *matCellDef="let row">{{row.derrotas}}</td>
-                </ng-container>
-
-                <tr mat-header-row *matHeaderRowDef="colunasClassificacao"></tr>
-                <tr mat-row *matRowDef="let row; columns: colunasClassificacao;"></tr>
-              </table>
-            </mat-tab>
-
-            <!-- Configurações -->
-            <mat-tab label="Configurações">
-              <div class="config-content">
-                <h3>Regras da Liga</h3>
-                <div class="info-row">
-                  <span class="label">Formação Mínima:</span>
-                  <span>{{liga?.formacaoMinima}}</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Tamanho Máximo do Elenco:</span>
-                  <span>{{liga?.tamanhoMaximoElenco}}</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Tempo de Escolha no Draft:</span>
-                  <span>{{liga?.tempoEscolhaDraft}} segundos</span>
-                </div>
+              <div class="info-item">
+                <div class="label">Times</div>
+                <div class="value">{{ liga?.times }}/{{ liga?.maxTimes }}</div>
               </div>
-            </mat-tab>
-          </mat-tab-group>
-        </mat-card-content>
-      </mat-card>
+              <div class="info-item">
+                <div class="label">Formação Mínima</div>
+                <div class="value">{{ liga?.formacaoMinima }}</div>
+              </div>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card>
+          <mat-card-header>
+            <mat-card-title>Times Participantes</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <table mat-table [dataSource]="timesParticipantes">
+              <!-- Posição Column -->
+              <ng-container matColumnDef="posicao">
+                <th mat-header-cell *matHeaderCellDef> Pos </th>
+                <td mat-cell *matCellDef="let time; let i = index"> {{ i + 1 }} </td>
+              </ng-container>
+
+              <!-- Nome Column -->
+              <ng-container matColumnDef="nome">
+                <th mat-header-cell *matHeaderCellDef> Time </th>
+                <td mat-cell *matCellDef="let time"> {{ time.nome }} </td>
+              </ng-container>
+
+              <!-- Pontos Column -->
+              <ng-container matColumnDef="pontos">
+                <th mat-header-cell *matHeaderCellDef> Pontos </th>
+                <td mat-cell *matCellDef="let time"> {{ time.pontos }} </td>
+              </ng-container>
+
+              <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+            </table>
+          </mat-card-content>
+        </mat-card>
+      </div>
     </div>
   `,
-  styles: [`
+  styles: `
+    .container {
+      padding: 16px;
+    }
+    
     .header {
       display: flex;
       align-items: center;
-      margin-bottom: 20px;
+      margin-bottom: 24px;
     }
+    
     .header h1 {
-      margin: 0 20px;
-      flex: 1;
+      margin: 0 0 0 16px;
     }
-    .info-content, .config-content {
-      padding: 20px;
-    }
-    .info-row {
+    
+    .details-container {
       display: flex;
-      margin-bottom: 10px;
+      flex-direction: column;
+      gap: 24px;
     }
+    
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+    
+    .info-item {
+      display: flex;
+      flex-direction: column;
+    }
+    
     .label {
-      font-weight: 500;
-      width: 200px;
+      color: var(--text-secondary);
+      font-size: 14px;
+      margin-bottom: 4px;
     }
+    
+    .value {
+      font-size: 16px;
+      font-weight: 500;
+    }
+    
     table {
       width: 100%;
     }
-  `]
+  `
 })
 export class LigaDetailComponent implements OnInit {
-  liga: any;
-  classificacao: any[] = [];
-  colunasClassificacao = ['posicao', 'time', 'pontos', 'vitorias', 'empates', 'derrotas'];
+  liga: any = null;
+  timesParticipantes: any[] = [];
+  displayedColumns: string[] = ['posicao', 'nome', 'pontos'];
 
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router
-  ) {}
+  constructor(private route: ActivatedRoute) {}
 
-  ngOnInit() {
-    const id = this.route.snapshot.paramMap.get('id');
+  ngOnInit(): void {
+    const ligaId = this.route.snapshot.paramMap.get('id');
     // TODO: Implementar chamada à API para buscar detalhes da liga
     this.liga = {
-      id: id,
+      id: ligaId,
       nome: 'Liga Brasileira 2024',
       status: 'ativa',
       times: 8,
       maxTimes: 12,
-      orcamentoInicial: 100,
-      dataInicio: new Date('2024-03-01'),
-      dataTermino: new Date('2024-12-31'),
-      formacaoMinima: '4-3-3',
-      tamanhoMaximoElenco: 18,
-      tempoEscolhaDraft: 60
+      formacaoMinima: '4-3-3'
     };
 
-    // Dados mockados da classificação
-    this.classificacao = [
-      { posicao: 1, time: 'Time A', pontos: 15, vitorias: 5, empates: 0, derrotas: 0 },
-      { posicao: 2, time: 'Time B', pontos: 12, vitorias: 4, empates: 0, derrotas: 1 },
-      { posicao: 3, time: 'Time C', pontos: 9, vitorias: 3, empates: 0, derrotas: 2 }
+    this.timesParticipantes = [
+      { id: 1, nome: 'Flamengo FC', pontos: 120 },
+      { id: 2, nome: 'Palmeiras United', pontos: 115 },
+      { id: 3, nome: 'São Paulo Stars', pontos: 100 },
+      { id: 4, nome: 'Cruzeiro Legends', pontos: 90 },
+      { id: 5, nome: 'Atlético Strikers', pontos: 85 },
+      { id: 6, nome: 'Botafogo Warriors', pontos: 80 },
+      { id: 7, nome: 'Santos Sailors', pontos: 75 },
+      { id: 8, nome: 'Vasco Vikings', pontos: 70 }
     ];
-  }
-
-  voltar() {
-    this.router.navigate(['/ligas']);
   }
 } 

@@ -4,8 +4,9 @@ import { Injectable } from '@angular/core';
   providedIn: 'root'
 })
 export class TeamLogoService {
-  private readonly basePath = 'assets/';
-  private readonly defaultLogo = 'assets/default-team.png';
+  private readonly basePath = 'assets/clubs/';
+  private readonly defaultLogo = 'assets/clubs/default-team.png';
+  private loggedMissingClubs = new Set<string>(); // Armazenar clubes já logados
   
   // Mapeamento de possíveis variações de nomes de clubes para suas siglas
   private readonly clubMappings: {[key: string]: string} = {
@@ -17,10 +18,18 @@ export class TeamLogoService {
     'Atletico-GO': 'ACG',
     'Atlético Goianiense': 'ACG',
     'Atletico Goianiense': 'ACG',
+    'Athletico-PR': 'CAP',
+    'Athletico Paranaense': 'CAP',
+    'Atlético-PR': 'CAP',
+    'Atletico-PR': 'CAP',
     'Bahia': 'BAH',
     'Botafogo': 'BOT',
+    'Botafogo FR': 'BOT',
     'Corinthians': 'COR',
+    'Coritiba': 'CFC',
     'Cruzeiro': 'CRU',
+    'Cuiabá': 'CUI',
+    'Cuiaba': 'CUI',
     'Flamengo': 'FLA',
     'Fluminense': 'FLU',
     'Fortaleza': 'FOR',
@@ -28,6 +37,8 @@ export class TeamLogoService {
     'Gremio': 'GRE',
     'Internacional': 'INT',
     'Juventude': 'JUV',
+    'Náutico': 'NAU',
+    'Nautico': 'NAU',
     'Palmeiras': 'PAL',
     'Red Bull Bragantino': 'RBB',
     'Bragantino': 'RBB',
@@ -43,7 +54,21 @@ export class TeamLogoService {
     'Ceara': 'CEA',
     'Sport': 'SPO',
     'Sport Recife': 'SPO',
-    'Mirassol': 'MIR'
+    'Mirassol': 'MIR',
+    'Goiás': 'GOI',
+    'Goias': 'GOI',
+    'América-MG': 'AME',
+    'America-MG': 'AME',
+    'América Mineiro': 'AME',
+    'America Mineiro': 'AME',
+    'Criciúma': 'CRI',
+    'Criciuma': 'CRI',
+    'Paraná': 'PAR',
+    'Parana': 'PAR',
+    'Avaí': 'AVA',
+    'Avai': 'AVA',
+    'CSA': 'CSA',
+    'Chapecoense': 'CHA'
   };
 
   constructor() { }
@@ -69,8 +94,12 @@ export class TeamLogoService {
       return `${this.basePath}${sigla}.png`;
     }
 
-    // Se não encontrou a sigla, retorna o logo padrão
-    console.warn(`Logo não encontrada para o clube: ${club}`);
+    // Registrar o clube desconhecido apenas uma vez para evitar spam no console
+    if (!this.loggedMissingClubs.has(club)) {
+      console.warn(`Logo não encontrada para o clube: ${club}`);
+      this.loggedMissingClubs.add(club);
+    }
+    
     return this.defaultLogo;
   }
 

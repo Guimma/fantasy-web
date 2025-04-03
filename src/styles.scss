@@ -1,41 +1,114 @@
 /* You can add global styles to this file, and also import other style files */
+@use './app/core/theme/component-themes';
+@use './app/core/theme/theme' as custom-theme;
 
-@use '@angular/material' as mat;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-// Include the common styles for Angular Material
-@include mat.core();
+// Definir variáveis CSS globais com nossa nova paleta de cores
+:root {
+  --primary-color: #2d2a32;
+  --primary-light: #565060;
+  --secondary-color: #ddd92a;
+  --tertiary-color: #eae151;
+  --light-color: #eeefa8;
+  --background-color: #fafdf6;
+  --card-background: white;
+  --disabled-background: rgba(0,0,0,0.03);
+  --text-primary: #2d2a32;
+  --text-secondary: #565060;
+  --text-light: #aaa4b3;
+  --border-radius: 8px;
+  --shadow-sm: 0 2px 4px rgba(45,42,50,0.1);
+  --shadow-md: 0 4px 8px rgba(45,42,50,0.12);
+  --shadow-lg: 0 8px 16px rgba(45,42,50,0.16);
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+}
 
-// Define the palettes for your theme using the Material Design palettes available in palette.scss
-// (imported above). For each palette, you can optionally specify a default, lighter, and darker
-// hue. Available color palettes: https://material.io/design/color/
-$primary: mat.define-palette(mat.$indigo-palette);
-$accent: mat.define-palette(mat.$pink-palette, A200, A100, A400);
-$warn: mat.define-palette(mat.$red-palette);
+// Classes de utilidade Tailwind personalizadas
+@layer utilities {
+  .bg-raisin {
+    background-color: #2d2a32;
+    color: white;
+  }
 
-// Create the theme object. A theme consists of configurations for individual
-// theming systems such as "color" or "typography".
-$theme: mat.define-light-theme((
-  color: (
-    primary: $primary,
-    accent: $accent,
-    warn: $warn,
-  ),
-  typography: mat.define-typography-config(),
-  density: 0,
-));
+  .bg-citrine {
+    background-color: #ddd92a;
+    color: #2d2a32;
+  }
 
-// Include theme styles for core and each component used in your app.
-@include mat.all-component-themes($theme);
+  .bg-maize {
+    background-color: #eae151;
+    color: #2d2a32;
+  }
 
-// Global styles
+  .bg-vanilla {
+    background-color: #eeefa8;
+    color: #2d2a32;
+  }
+
+  .bg-babypowder {
+    background-color: #fafdf6;
+    color: #2d2a32;
+  }
+
+  .text-raisin {
+    color: #2d2a32;
+  }
+
+  .text-citrine {
+    color: #ddd92a;
+  }
+
+  .text-maize {
+    color: #eae151;
+  }
+
+  .text-vanilla {
+    color: #eeefa8;
+  }
+
+  .border-raisin {
+    border-color: #2d2a32;
+  }
+
+  .border-citrine {
+    border-color: #ddd92a;
+  }
+
+  .border-maize {
+    border-color: #eae151;
+  }
+
+  .border-vanilla {
+    border-color: #eeefa8;
+  }
+}
+
+// Definir a fonte global para toda a aplicação
+* {
+  font-family: "DM Sans", sans-serif;
+}
+
+// Manter configurações globais originais mas garantir que a fonte seja aplicada
 html, body {
   height: 100%;
   margin: 0;
-  font-family: Roboto, "Helvetica Neue", sans-serif;
+  font-family: "DM Sans", sans-serif !important;
+  font-optical-sizing: auto;
+  font-style: normal;
 }
 
+// Aplicar a classe de tema personalizado ao body
 body {
-  background-color: #f5f5f5;
+  @extend .custom-theme;
+  background-color: var(--background-color);
+  color: var(--text-primary);
 }
 
 .container {
@@ -55,7 +128,7 @@ body {
 }
 
 .mat-typography {
-  font: 400 14px/20px Roboto, "Helvetica Neue", sans-serif;
+  font: 400 14px/20px "DM Sans", sans-serif;
   letter-spacing: normal;
 }
 
@@ -65,7 +138,8 @@ body {
 }
 
 .confirmation-dialog .mat-mdc-dialog-surface {
-  border-radius: 8px;
+  border-radius: var(--border-radius);
+  background-color: var(--background-color);
 }
 
 /* Sobrescrever os estilos padrão do Angular Material para diálogos */
@@ -78,9 +152,37 @@ body {
 .mat-mdc-dialog-content {
   padding: 20px 24px;
   margin: 0;
+  color: var(--text-primary);
 }
 
 .mat-mdc-dialog-title {
   margin: 0;
   padding: 24px 24px 0;
+  color: var(--primary-color);
+}
+
+/* Estilos para os itens do menu hamburguer */
+.mat-mdc-menu-content {
+  .mat-mdc-menu-item {
+    color: var(--primary-color) !important;
+    
+    .mdc-list-item__primary-text {
+      color: var(--primary-color) !important;
+    }
+
+    .mat-icon {
+      color: var(--primary-color) !important;
+    }
+    
+    // Aplicar para todos os spans que são filhos diretos
+    > span {
+      color: var(--primary-color) !important;
+    }
+  }
+}
+
+// Adicional para forçar a cor em qualquer texto dentro do menu
+.primary-menu-item span,
+.mat-mdc-menu-panel .mat-mdc-menu-item span {
+  color: var(--primary-color) !important;
 }

@@ -121,7 +121,7 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
         <!-- Players List -->
         <div class="players-list" *ngIf="filteredPlayers.length > 0">
           <div *ngFor="let player of filteredPlayers" class="player-item">
-            <mat-card>
+            <mat-card class="player-card">
               <mat-card-content>
                 <div class="player-card-content">
                   <div class="player-main-info">
@@ -165,34 +165,39 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
   `,
   styles: `
     .player-search-container {
-      padding: 16px;
-      height: 100%;
       display: flex;
       flex-direction: column;
-      overflow-y: auto;
+      height: 100%;
+      overflow: hidden;
     }
 
     .section-title {
-      margin: 0 0 16px 0;
-      color: #3f51b5;
+      margin: 0;
+      padding: 16px 16px 8px 16px;
+      color: var(--primary-color);
       font-size: 20px;
       font-weight: 500;
+      flex-shrink: 0;
     }
 
     .loading {
       display: flex;
       justify-content: center;
       padding: 24px;
+      flex-shrink: 0;
     }
 
     .search-content {
       display: flex;
       flex-direction: column;
-      flex: 1;
+      height: 100%;
+      overflow: hidden;
     }
 
     .search-filters {
-      margin-bottom: 16px;
+      padding: 0 16px;
+      margin-bottom: 8px;
+      flex-shrink: 0;
     }
 
     .search-input {
@@ -224,7 +229,7 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
     .filter-chip {
       display: flex;
       align-items: center;
-      background-color: #e3f2fd;
+      background-color: var(--light-color);
       border-radius: 16px;
       padding: 4px 8px 4px 12px;
       font-size: 14px;
@@ -249,48 +254,43 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
       font-size: 16px;
       width: 16px;
       height: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
     }
 
     mat-divider {
-      margin-bottom: 16px;
+      margin: 8px 0;
     }
 
     .results-count {
-      margin-bottom: 16px;
+      padding: 8px 16px;
       font-size: 14px;
       color: #757575;
     }
 
     .players-list {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
+      padding: 0 16px 16px;
       overflow-y: auto;
+      flex: 1;
     }
 
     .player-item {
-      border-radius: 4px;
+      margin-bottom: 12px;
     }
 
-    mat-card {
-      padding: 0;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.12) !important;
-      border: 1px solid rgba(0,0,0,0.08);
-      transition: transform 0.2s, box-shadow 0.2s;
-      background-color: white;
-    }
-
-    mat-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.16) !important;
-    }
-
-    mat-card-content {
-      padding: 12px !important; /* Override Material padding */
+    .player-item:last-child {
       margin-bottom: 0;
+    }
+
+    .player-card {
+      background-color: white;
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow-sm);
+      transition: transform 0.2s, box-shadow 0.2s;
+      border: 1px solid rgba(0,0,0,0.06);
+    }
+
+    .player-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
     }
 
     .player-card-content {
@@ -311,69 +311,13 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
       display: flex;
       align-items: center;
       justify-content: center;
-      overflow: hidden;
+      flex-shrink: 0;
     }
 
     .team-logo-img {
-      width: 100%;
-      height: 100%;
+      max-width: 100%;
+      max-height: 100%;
       object-fit: contain;
-    }
-    
-    .player-position {
-      display: inline-block;
-      padding: 3px 6px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: bold;
-      letter-spacing: 0.5px;
-      color: white;
-      background-color: #aaa;
-      text-transform: uppercase;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-      margin-right: 4px;
-    }
-
-    .player-position[data-position="GOL"], 
-    .player-position[data-position="Goleiro"] {
-      background-color: #ffeb3b;
-      color: #000;
-    }
-
-    .player-position[data-position="LAT"], 
-    .player-position[data-position="Lateral"] {
-      background-color: #4caf50;
-      color: white;
-    }
-
-    .player-position[data-position="ZAG"], 
-    .player-position[data-position="Zagueiro"] {
-      background-color: #2196f3;
-      color: white;
-    }
-
-    .player-position[data-position="MEI"], 
-    .player-position[data-position="Meia"] {
-      background-color: #ff9800;
-      color: #000;
-    }
-
-    .player-position[data-position="ATA"], 
-    .player-position[data-position="Atacante"] {
-      background-color: #f44336;
-      color: white;
-    }
-
-    .player-position[data-position="TEC"], 
-    .player-position[data-position="Técnico"],
-    .player-position[data-position="Tecnico"] {
-      background-color: #607d8b;
-      color: white;
-    }
-
-    .player-position[data-position="SEM"] {
-      background-color: #9e9e9e;
-      color: white;
     }
 
     .player-details {
@@ -383,23 +327,66 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
 
     .player-name {
       font-weight: 500;
+      font-size: 16px;
       margin-bottom: 4px;
     }
 
     .player-meta {
       display: flex;
-      gap: 8px;
       align-items: center;
+      gap: 8px;
       font-size: 13px;
+    }
+
+    .player-position {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 500;
+      color: white;
+      background-color: var(--primary-color);
+    }
+
+    .player-position[data-position="GOL"] {
+      background-color: #ffb74d;
+    }
+
+    .player-position[data-position="ZAG"] {
+      background-color: #4fc3f7;
+    }
+
+    .player-position[data-position="LAT"] {
+      background-color: #7986cb;
+    }
+
+    .player-position[data-position="MEI"] {
+      background-color: #81c784;
+    }
+
+    .player-position[data-position="ATA"] {
+      background-color: #e57373;
+    }
+
+    .player-position[data-position="TEC"] {
+      background-color: #9575cd;
+    }
+
+    .player-price {
       color: #757575;
     }
 
+    .player-actions {
+      display: flex;
+      align-items: center;
+    }
+
     .empty-results {
-      padding: 32px 16px;
-      text-align: center;
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
+      padding: 32px 16px;
+      text-align: center;
       color: #757575;
     }
 
@@ -415,24 +402,11 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
         flex-direction: column;
         gap: 0;
       }
-    }
 
-    .player-actions {
-      display: flex;
-      align-items: center;
-    }
-
-    .player-actions button {
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-      width: 36px;
-      height: 36px;
-      line-height: 36px;
-    }
-
-    .player-actions mat-icon {
-      font-size: 20px;
-      width: 20px;
-      height: 20px;
+      .players-list {
+        height: auto;
+        max-height: 400px;
+      }
     }
   `
 })
@@ -460,20 +434,6 @@ export class PlayerSearchComponent implements OnChanges, OnInit {
       this.filteredPlayers = [...this.availablePlayers];
       this.extractUniqueClubs();
       this.applyFilters();
-      
-      // Logar o primeiro jogador para verificação de dados
-      if (this.availablePlayers.length > 0) {
-        console.log('Exemplo de objeto de jogador:', this.availablePlayers[0]);
-        console.log('Preço do jogador mais caro:', this.availablePlayers[0].preco);
-        
-        // Contar jogadores por posição
-        const positionCount: Record<string, number> = {};
-        this.availablePlayers.forEach(player => {
-          const pos = player.posicao || 'Desconhecida';
-          positionCount[pos] = (positionCount[pos] || 0) + 1;
-        });
-        console.log('Contagem de jogadores por posição:', positionCount);
-      }
     }
   }
 
@@ -481,16 +441,6 @@ export class PlayerSearchComponent implements OnChanges, OnInit {
     this.searchControl.valueChanges.subscribe(() => this.applyFilters());
     this.positionControl.valueChanges.subscribe(() => this.applyFilters());
     this.clubControl.valueChanges.subscribe(() => this.applyFilters());
-    
-    // Logar informações sobre os valores do filtro de posição para depuração
-    this.positionControl.valueChanges.subscribe(value => {
-      console.log('Filtro de posição alterado para:', value);
-      if (this.availablePlayers.length > 0) {
-        const primeiroJogador = this.availablePlayers[0];
-        console.log('Exemplo de jogador - posição:', primeiroJogador.posicao);
-        console.log('Exemplo de jogador - posicaoAbreviacao:', primeiroJogador.posicaoAbreviacao);
-      }
-    });
   }
 
   extractUniqueClubs(): void {

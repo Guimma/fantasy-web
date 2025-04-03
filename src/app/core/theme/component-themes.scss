@@ -1,0 +1,53 @@
+@use '@angular/material' as mat;
+@use './theme' as custom-theme;
+@use 'sass:map';
+
+// Inclui apenas CORE do Angular Material
+@include mat.core();
+
+// Define a classe de tema global para aplicação ao elemento HTML
+.custom-theme {
+  // Aplica o tema principal
+  @include mat.all-component-themes(custom-theme.$theme);
+  
+  // Sobrescreve variáveis CSS para garantir que os componentes do Material usem nossa paleta
+  --mdc-filled-button-container-color: #{map.get(custom-theme.$theme-colors, raisin)};
+  --mdc-filled-button-label-text-color: white;
+  --mat-fab-extended-container-color: #{map.get(custom-theme.$theme-colors, raisin)};
+  --mat-fab-extended-label-text-color: white;
+  
+  // Cor primária para barras de ferramentas
+  --mat-toolbar-container-background-color: #{map.get(custom-theme.$theme-colors, raisin)};
+  --mat-toolbar-container-text-color: white;
+  
+  // Cor de destaque para botões
+  --mat-outlined-button-outline-color: #{map.get(custom-theme.$theme-colors, raisin)};
+  --mat-icon-color: #{map.get(custom-theme.$theme-colors, raisin)};
+  
+  // Cores de destaque/accent
+  --mat-accent-color: #{map.get(custom-theme.$theme-colors, citrine)};
+  --mdc-filled-text-field-focus-active-indicator-color: #{map.get(custom-theme.$theme-colors, citrine)};
+  --mdc-filled-text-field-focus-label-text-color: #{map.get(custom-theme.$theme-colors, citrine)};
+  
+  // Cores para componentes interativos
+  --mdc-checkbox-selected-icon-color: #{map.get(custom-theme.$theme-colors, citrine)};
+  --mdc-checkbox-selected-focus-icon-color: #{map.get(custom-theme.$theme-colors, citrine)};
+  --mdc-checkbox-selected-hover-icon-color: #{map.get(custom-theme.$theme-colors, citrine)};
+  --mdc-checkbox-selected-pressed-icon-color: #{map.get(custom-theme.$theme-colors, citrine)};
+  --mdc-checkbox-selected-checkmark-color: #{map.get(custom-theme.$theme-colors, raisin)};
+  
+  // Cores de rádio botões
+  --mdc-radio-selected-focus-icon-color: #{map.get(custom-theme.$theme-colors, citrine)};
+  --mdc-radio-selected-hover-icon-color: #{map.get(custom-theme.$theme-colors, citrine)};
+  --mdc-radio-selected-icon-color: #{map.get(custom-theme.$theme-colors, citrine)};
+  --mdc-radio-selected-pressed-icon-color: #{map.get(custom-theme.$theme-colors, citrine)};
+  
+  // Cores para tabs
+  --mat-tab-header-active-focus-indicator-color: #{map.get(custom-theme.$theme-colors, raisin)};
+  --mat-tab-header-active-ripple-color: #{map.get(custom-theme.$theme-colors, raisin)};
+  --mat-tab-header-active-label-text-color: #{map.get(custom-theme.$theme-colors, raisin)};
+  --mat-tab-header-inactive-ripple-color: #{rgba(45, 42, 50, 0.1)};
+  
+  // Cores para ripples
+  --mat-ripple-color: #{rgba(45, 42, 50, 0.1)};
+} 
