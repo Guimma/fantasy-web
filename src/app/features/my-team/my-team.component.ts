@@ -447,16 +447,6 @@ import { Rodada, PontuacaoRodada, DetalhePontuacaoAtleta } from './models/pontua
       position: relative;
     }
     
-    .team-container::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 4px;
-      background: linear-gradient(to right, var(--primary-color), var(--accent-color, #7b1fa2));
-    }
-    
     .team-header {
       display: flex;
       justify-content: space-between;
