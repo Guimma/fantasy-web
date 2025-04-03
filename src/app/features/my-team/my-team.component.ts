@@ -179,15 +179,6 @@ import { Rodada, PontuacaoRodada, DetalhePontuacaoAtleta } from './models/pontua
                             </div>
                             
                             <div *ngIf="!isLoadingDetalhes && detalhesRodadaSelecionada.length > 0">
-                              <div class="details-header">
-                                <div>
-                                  <strong>Data do cálculo:</strong> {{ formatarData(pontuacao.data_calculo) }}
-                                </div>
-                                <button mat-icon-button color="primary" (click)="recalcularPontuacaoRodada(pontuacao.rodada_id, $event)" matTooltip="Recalcular pontuação">
-                                  <mat-icon>refresh</mat-icon>
-                                </button>
-                              </div>
-                              
                               <mat-list dense>
                                 <mat-list-item *ngFor="let player of getAllPlayersWithPontuacao(detalhesRodadaSelecionada, pontuacao.rodada_id)">
                                   <div class="player-score-item">
@@ -518,15 +509,6 @@ import { Rodada, PontuacaoRodada, DetalhePontuacaoAtleta } from './models/pontua
     
     .round-details {
       margin-top: 8px;
-    }
-    
-    .details-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-      color: rgba(0, 0, 0, 0.67);
-      font-size: 14px;
     }
     
     .player-score-item {
