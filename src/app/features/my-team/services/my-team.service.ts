@@ -208,20 +208,26 @@ export class MyTeamService {
                 // Aplicar o status do time, se disponível
                 const idCartola = athlete.atleta_id.toString();
                 if (playerStatuses[idCartola]) {
-                  // Map ElencosTimes status to Cartola status format
-                  const statusMap: Record<string, string> = {
-                    'Ativo': 'Disponível',
-                    'Contundido': 'Contundido',
-                    'Dúvida': 'Dúvida',
-                    'Suspenso': 'Suspenso',
-                    'Provável': 'Provável',
-                    'Nulo': 'Nulo'
-                  };
-
-                  // Use the mapped status or the original one if no mapping exists
+                  // Use the status from Cartola API by default (already mapped correctly)
+                  // Only override if the team has a specific status set
                   const rawStatus = playerStatuses[idCartola].status;
-                  mappedAthlete.status = statusMap[rawStatus] || rawStatus;
-                  console.log(`[MyTeamService] Aplicando status para ${mappedAthlete.apelido}: ${rawStatus} -> ${mappedAthlete.status}`);
+                  if (rawStatus && rawStatus !== 'Ativo') {
+                    // Map ElencosTimes status to Cartola status format
+                    const statusMap: Record<string, string> = {
+                      'Ativo': 'Disponível',
+                      'Contundido': 'Contundido',
+                      'Dúvida': 'Dúvida',
+                      'Suspenso': 'Suspenso',
+                      'Provável': 'Provável',
+                      'Nulo': 'Nulo'
+                    };
+
+                    // Use the mapped status or the original one if no mapping exists
+                    mappedAthlete.status = statusMap[rawStatus] || rawStatus;
+                    console.log(`[MyTeamService] Sobrescrevendo status para ${mappedAthlete.apelido}: API=${mappedAthlete.status} -> Time=${statusMap[rawStatus] || rawStatus}`);
+                  }
+                  
+                  console.log(`[MyTeamService] Status final para ${mappedAthlete.apelido}: ${mappedAthlete.status}`);
                 }
                 
                 return mappedAthlete;

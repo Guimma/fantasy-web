@@ -529,6 +529,8 @@ import { Rodada, PontuacaoRodada, DetalhePontuacaoAtleta } from './models/pontua
       width: 20px;
       height: 20px;
       object-fit: contain;
+      background-color: transparent;
+      padding: 1px;
     }
     
     .player-position {

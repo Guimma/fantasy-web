@@ -176,8 +176,16 @@ export class CartolaApiService {
       };
     }
 
+    // Log do status_id para depuração
+    console.log(`[CartolaAPI] Mapeando atleta ${athlete.apelido} (ID: ${athlete.atleta_id}), status_id: ${athlete.status_id}`);
+    
     // Obter o ID numérico do Cartola - PRINCIPAL identificador
     const numericId = athlete.atleta_id.toString();
+    
+    const status = this.mapStatusFromId(athlete.status_id);
+    
+    // Log do status mapeado
+    console.log(`[CartolaAPI] Atleta ${athlete.apelido}: status_id ${athlete.status_id} mapeado para "${status}"`);
     
     return {
       idCartola: numericId,      // ID numérico do Cartola (PRINCIPAL)
@@ -193,7 +201,7 @@ export class CartolaApiService {
       preco: athlete.preco_num || 0,
       mediaPontos: athlete.media_num || 0,
       jogos: athlete.jogos_num || 0,
-      status: this.mapStatusFromId(athlete.status_id),
+      status: status,
       ultimaAtualizacao: new Date().toISOString(),
       dataCriacao: ''
     };
@@ -234,6 +242,12 @@ export class CartolaApiService {
       6: 'Nulo',
       7: 'Provável'
     };
+    
+    // Log so we can debug status mapping issues
+    if (!status[statusId]) {
+      console.log(`[CartolaAPI] Status ID ${statusId} não mapeado, usando 'Disponível' como padrão`);
+    }
+    
     return status[statusId] || 'Disponível';
   }
 
