@@ -47,6 +47,7 @@ export interface Athlete {
   mediaPontos: number;
   jogos: number;
   status: string;
+  pontuacao?: number;    // Pontuação do jogador na rodada atual
   ultimaAtualizacao?: string;
   dataCriacao?: string;
 }

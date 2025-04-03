@@ -15,6 +15,10 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
 import { MatDividerModule } from '@angular/material/divider';
+import { MatExpansionModule } from '@angular/material/expansion';
+import { MatBadgeModule } from '@angular/material/badge';
+import { MatListModule } from '@angular/material/list';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 // Componentes personalizados
 import { PlayerListComponent } from './components/player-list/player-list.component';
@@ -25,7 +29,10 @@ import { PlayerCardComponent } from './components/player-card/player-card.compon
 
 // Modelos e Serviço
 import { MyTeamService } from './services/my-team.service';
+import { PontuacaoService } from './services/pontuacao.service';
+import { TaskSchedulerService } from './services/task-scheduler.service';
 import { MyTeam, MyTeamPlayer, LineupPlayer, Formation, FormationPosition, FORMATIONS } from './models/my-team.model';
+import { Rodada, PontuacaoRodada, DetalhePontuacaoAtleta } from './models/pontuacao.model';
 
 @Component({
   selector: 'app-my-team',
@@ -42,12 +49,20 @@ import { MyTeam, MyTeamPlayer, LineupPlayer, Formation, FormationPosition, FORMA
     MatProgressSpinnerModule,
     MatSnackBarModule,
     MatDividerModule,
+    MatExpansionModule,
+    MatBadgeModule,
+    MatListModule,
+    MatTooltipModule,
     DragDropModule,
     PlayerListComponent,
     SoccerFieldComponent,
     TeamNameEditorComponent,
     FormationSelectorComponent,
-    PlayerCardComponent
+    PlayerCardComponent,
+    MatExpansionModule,
+    MatBadgeModule,
+    MatListModule,
+    MatTooltipModule
   ],
   template: `
     <div class="app-container">
@@ -85,7 +100,127 @@ import { MyTeam, MyTeamPlayer, LineupPlayer, Formation, FormationPosition, FORMA
             
             <!-- Interface principal -->
             <div class="main-interface">
-              <!-- Campo de futebol e escalação -->
+              <!-- Coluna 1: Pontuações do time nas rodadas -->
+              <div class="scores-container">
+                <mat-card>
+                  <mat-card-header>
+                    <mat-card-title class="squad-title">Pontuações</mat-card-title>
+                  </mat-card-header>
+                  <mat-card-content>
+                    <!-- Pontuação parcial da rodada atual (se em andamento) -->
+                    <div *ngIf="rodadaAtual && rodadaAtual.status === 'em_andamento'" class="current-round-section">
+                      <div class="section-header current-round">
+                        <mat-icon>access_time</mat-icon>
+                        <span>{{ rodadaAtual.nome }} (Em andamento)</span>
+                      </div>
+                      
+                      <div *ngIf="isLoadingPontuacoes" class="loading-container">
+                        <mat-spinner diameter="30"></mat-spinner>
+                        <span>Calculando pontuação parcial...</span>
+                      </div>
+                      
+                      <div *ngIf="!isLoadingPontuacoes && parcialRodadaAtual" class="score-card parcial">
+                        <div class="score-value">
+                          <span class="score">{{ parcialRodadaAtual.pontuacao_total | number:'1.2-2' }}</span>
+                          <span class="parcial-label">pontos (parcial)</span>
+                        </div>
+                        <div class="score-details">
+                          <span>{{ parcialRodadaAtual.atletas_pontuados.length }} jogadores pontuados</span>
+                          <button mat-icon-button (click)="loadParcialRodadaAtual()" matTooltip="Atualizar pontuação parcial">
+                            <mat-icon>refresh</mat-icon>
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div *ngIf="!isLoadingPontuacoes && !parcialRodadaAtual" class="empty-state">
+                        <span>Nenhum jogador pontuado ainda nesta rodada.</span>
+                        <button mat-button color="primary" (click)="loadParcialRodadaAtual()">
+                          <mat-icon>refresh</mat-icon> Atualizar
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <!-- Rodadas anteriores -->
+                    <div class="past-rounds-section">
+                      <div class="section-header">
+                        <mat-icon>history</mat-icon>
+                        <span>Rodadas Anteriores</span>
+                      </div>
+                      
+                      <div *ngIf="isLoadingPontuacoes" class="loading-container">
+                        <mat-spinner diameter="30"></mat-spinner>
+                        <span>Carregando pontuações...</span>
+                      </div>
+                      
+                      <div *ngIf="!isLoadingPontuacoes && pontuacoesRodadas.length === 0" class="empty-state">
+                        <span>Nenhuma pontuação encontrada.</span>
+                      </div>
+                      
+                      <mat-accordion *ngIf="!isLoadingPontuacoes && pontuacoesRodadas.length > 0">
+                        <mat-expansion-panel 
+                          *ngFor="let pontuacao of pontuacoesRodadas" 
+                          [expanded]="rodadaSelecionadaId === pontuacao.rodada_id"
+                          (opened)="selecionarRodada(pontuacao.rodada_id)"
+                        >
+                          <mat-expansion-panel-header>
+                            <mat-panel-title>
+                              Rodada {{ pontuacao.rodada_id }}
+                            </mat-panel-title>
+                            <mat-panel-description>
+                              {{ pontuacao.pontuacao_total | number:'1.2-2' }} pts
+                            </mat-panel-description>
+                          </mat-expansion-panel-header>
+                          
+                          <!-- Conteúdo expandido com detalhes da pontuação -->
+                          <div class="round-details">
+                            <div *ngIf="isLoadingDetalhes" class="loading-container">
+                              <mat-spinner diameter="24"></mat-spinner>
+                              <span>Carregando detalhes...</span>
+                            </div>
+                            
+                            <div *ngIf="!isLoadingDetalhes && detalhesRodadaSelecionada.length > 0">
+                              <div class="details-header">
+                                <div>
+                                  <strong>Data do cálculo:</strong> {{ formatarData(pontuacao.data_calculo) }}
+                                </div>
+                                <button mat-icon-button color="primary" (click)="recalcularPontuacaoRodada(pontuacao.rodada_id, $event)" matTooltip="Recalcular pontuação">
+                                  <mat-icon>refresh</mat-icon>
+                                </button>
+                              </div>
+                              
+                              <mat-list dense>
+                                <mat-list-item *ngFor="let detalhe of detalhesRodadaSelecionada">
+                                  <div class="player-score-item">
+                                    <div class="player-info">
+                                      <span class="player-position" [attr.data-position]="getPositionCode(detalhe.atleta.posicao)">
+                                        {{ detalhe.atleta.posicaoAbreviacao }}
+                                      </span>
+                                      <img [src]="getTeamLogoUrl(detalhe.atleta.clubeAbreviacao)" 
+                                           [alt]="detalhe.atleta.clube"
+                                           class="player-club-logo"
+                                           (error)="handleLogoError($event)">
+                                      <span class="player-name" [matTooltip]="detalhe.atleta.apelido">{{ detalhe.atleta.apelido }}</span>
+                                    </div>
+                                    <div class="player-score" [ngClass]="{'negative': detalhe.pontuacao < 0, 'positive': detalhe.pontuacao > 0}">
+                                      {{ detalhe.pontuacao | number:'1.2-2' }}
+                                    </div>
+                                  </div>
+                                </mat-list-item>
+                              </mat-list>
+                            </div>
+                            
+                            <div *ngIf="!isLoadingDetalhes && detalhesRodadaSelecionada.length === 0" class="empty-state">
+                              <span>Nenhum detalhe disponível.</span>
+                            </div>
+                          </div>
+                        </mat-expansion-panel>
+                      </mat-accordion>
+                    </div>
+                  </mat-card-content>
+                </mat-card>
+              </div>
+              
+              <!-- Coluna 2: Campo de futebol e escalação -->
               <div class="field-container">
                 <mat-card>
                   <mat-card-header>
@@ -101,7 +236,7 @@ import { MyTeam, MyTeamPlayer, LineupPlayer, Formation, FormationPosition, FORMA
                 </mat-card>
               </div>
               
-              <!-- Lista de jogadores -->
+              <!-- Coluna 3: Lista de jogadores -->
               <div class="players-container">
                 <mat-card>
                   <mat-card-header>
@@ -190,7 +325,7 @@ import { MyTeam, MyTeamPlayer, LineupPlayer, Formation, FormationPosition, FORMA
     }
     
     .content-container {
-      max-width: 1200px;
+      max-width: 1400px;
       width: 100%;
       margin: 0 auto;
     }
@@ -257,8 +392,8 @@ import { MyTeam, MyTeamPlayer, LineupPlayer, Formation, FormationPosition, FORMA
     
     .players-container {
       flex: 1;
-      min-width: 300px;
-      max-width: 450px;
+      min-width: 280px;
+      max-width: 380px;
     }
     
     .players-container mat-card {
@@ -274,6 +409,209 @@ import { MyTeam, MyTeamPlayer, LineupPlayer, Formation, FormationPosition, FORMA
       flex-direction: column;
       overflow: visible;
       padding-bottom: 16px !important;
+    }
+    
+    /* Estilos para a coluna de pontuações */
+    .scores-container {
+      width: 320px;
+      min-width: 320px;
+    }
+    
+    .scores-container mat-card {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+    
+    .scores-container mat-card-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+      max-height: 600px;
+    }
+    
+    .section-header {
+      background-color: rgba(0, 0, 0, 0.04);
+      padding: 8px 12px;
+      font-weight: 500;
+      border-radius: 4px;
+      width: 100%;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    
+    .section-header.current-round {
+      background-color: #e3f2fd;
+      color: #1976d2;
+      border-left: 4px solid #1976d2;
+    }
+    
+    .section-header mat-icon {
+      font-size: 18px;
+      height: 18px;
+      width: 18px;
+    }
+    
+    .loading-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 16px;
+      color: rgba(0, 0, 0, 0.54);
+    }
+    
+    .score-card {
+      border-radius: 4px;
+      padding: 12px;
+      margin-bottom: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .score-card.parcial {
+      background-color: #f5f5f5;
+    }
+    
+    .score-value {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    
+    .score {
+      font-size: 24px;
+      font-weight: bold;
+      color: #1976d2;
+    }
+    
+    .parcial-label {
+      font-size: 12px;
+      color: rgba(0, 0, 0, 0.54);
+    }
+    
+    .score-details {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+      color: rgba(0, 0, 0, 0.67);
+    }
+    
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      text-align: center;
+      color: rgba(0, 0, 0, 0.54);
+      gap: 8px;
+    }
+    
+    .round-details {
+      margin-top: 8px;
+    }
+    
+    .details-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      color: rgba(0, 0, 0, 0.67);
+      font-size: 14px;
+    }
+    
+    .player-score-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+    }
+    
+    .player-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      max-width: 80%;
+    }
+    
+    .player-club-logo {
+      width: 20px;
+      height: 20px;
+      object-fit: contain;
+    }
+    
+    .player-position {
+      font-size: 12px;
+      font-weight: 500;
+      padding: 2px 6px;
+      border-radius: 4px;
+      min-width: 30px;
+      text-align: center;
+      color: white;
+      background-color: var(--primary-color);
+    }
+    
+    .player-position[data-position="GOL"] {
+      background-color: #ffb74d;
+    }
+
+    .player-position[data-position="ZAG"] {
+      background-color: #4fc3f7;
+    }
+
+    .player-position[data-position="LAT"] {
+      background-color: #7986cb;
+    }
+
+    .player-position[data-position="MEI"] {
+      background-color: #81c784;
+    }
+
+    .player-position[data-position="ATA"] {
+      background-color: #e57373;
+    }
+
+    .player-position[data-position="TEC"] {
+      background-color: #9575cd;
+    }
+    
+    .player-name {
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .player-club {
+      font-size: 12px;
+      color: rgba(0, 0, 0, 0.54);
+    }
+    
+    .player-score {
+      font-weight: 700;
+      font-size: 15px;
+      background-color: rgba(0,0,0,0.05);
+      padding: 2px 8px;
+      border-radius: 4px;
+      min-width: 45px;
+      text-align: center;
+    }
+    
+    .player-score.positive {
+      color: #4caf50;
+      background-color: rgba(76, 175, 80, 0.1);
+    }
+    
+    .player-score.negative {
+      color: #f44336;
+      background-color: rgba(244, 67, 54, 0.1);
     }
     
     .actions-container {
@@ -314,7 +652,54 @@ import { MyTeam, MyTeamPlayer, LineupPlayer, Formation, FormationPosition, FORMA
       color: rgba(255, 255, 255, 0.8);
     }
     
+    /* Estilos para o departamento médico */
+    .medical-department {
+      margin-bottom: 16px;
+      width: 100%;
+    }
+    
+    .medical-department .section-header {
+      background-color: #ffebee;
+      color: #d32f2f;
+      border-left: 4px solid #f44336;
+    }
+    
+    .player-cards-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      width: 100%;
+    }
+    
+    .player-list-item {
+      width: calc(50% - 4px);
+      box-sizing: border-box;
+    }
+    
     /* Responsividade */
+    @media (max-width: 1200px) {
+      .main-interface {
+        flex-wrap: wrap;
+      }
+      
+      .scores-container {
+        width: 100%;
+        min-width: 100%;
+        order: 3;
+      }
+      
+      .field-container {
+        flex: 1 0 50%;
+        order: 1;
+      }
+      
+      .players-container {
+        flex: 1 0 45%;
+        max-width: 45%;
+        order: 2;
+      }
+    }
+    
     @media (max-width: 768px) {
       .main-interface {
         flex-direction: column;
@@ -325,8 +710,25 @@ import { MyTeam, MyTeamPlayer, LineupPlayer, Formation, FormationPosition, FORMA
         align-items: flex-start;
       }
       
-      .players-container {
+      .field-container, 
+      .players-container,
+      .scores-container {
         max-width: 100%;
+        width: 100%;
+      }
+      
+      .players-container {
+        order: 2;
+      }
+      
+      .scores-container {
+        order: 3;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .player-list-item {
+        width: 100%;
       }
     }
 
@@ -356,56 +758,14 @@ import { MyTeam, MyTeamPlayer, LineupPlayer, Formation, FormationPosition, FORMA
       border-color: var(--primary-color);
     }
 
-    .players-container mat-card-title.squad-title {
+    .players-container mat-card-title.squad-title,
+    .field-container mat-card-title.squad-title,
+    .scores-container mat-card-title.squad-title {
       font-size: 22px;
       font-weight: 700;
       color: var(--primary-color);
       margin-bottom: 16px;
       letter-spacing: 0.5px;
-    }
-    
-    .medical-department {
-      margin-bottom: 16px;
-      width: 100%;
-    }
-    
-    .section-header {
-      background-color: #ffebee;
-      color: #d32f2f;
-      border-left: 4px solid #f44336;
-      padding: 8px 12px;
-      font-weight: 500;
-      border-radius: 4px;
-      margin-bottom: 8px;
-      width: 100%;
-      box-sizing: border-box;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    
-    .section-header mat-icon {
-      font-size: 18px;
-      height: 18px;
-      width: 18px;
-    }
-    
-    .player-cards-container {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      width: 100%;
-    }
-    
-    .player-list-item {
-      width: calc(50% - 4px);
-      box-sizing: border-box;
-    }
-    
-    @media (max-width: 480px) {
-      .player-list-item {
-        width: 100%;
-      }
     }
   `
 })
@@ -419,53 +779,75 @@ export class MyTeamComponent implements OnInit {
   formationChanged = false;
   newFormationId: string | null = null;
   
+  // Novas propriedades para pontuações
+  rodadaAtual: Rodada | null = null;
+  rodadasAnteriores: Rodada[] = [];
+  pontuacoesRodadas: PontuacaoRodada[] = [];
+  detalhesRodadaSelecionada: DetalhePontuacaoAtleta[] = [];
+  rodadaSelecionadaId: number | null = null;
+  isLoadingPontuacoes = false;
+  isLoadingDetalhes = false;
+  parcialRodadaAtual: PontuacaoRodada | null = null;
+  
   constructor(
     private myTeamService: MyTeamService,
+    private pontuacaoService: PontuacaoService,
+    private taskSchedulerService: TaskSchedulerService,
     private snackBar: MatSnackBar
   ) {}
   
   ngOnInit(): void {
-    this.loadMyTeam();
+    console.log('[MyTeamComponent] Inicializando componente...');
+    
+    // Carregar formações disponíveis
     this.loadFormations();
+    
+    // Primeiro carregar o time
+    this.loadMyTeam();
+    
+    // Depois carregar as rodadas (a função loadRodadas carregará as pontuações após obter as rodadas)
+    this.loadRodadas();
   }
 
   loadMyTeam(): void {
+    console.log('[MyTeamComponent] Carregando dados do time...');
     this.isLoading = true;
-    this.myTeamService.getMyTeam()
-      .pipe(finalize(() => this.isLoading = false))
-      .subscribe({
-        next: (team) => {
-          this.myTeam = team;
-          console.log('Time carregado:', this.myTeam);
-          if (team?.players) {
-            console.log('[MyTeam] Total de jogadores carregados:', team.players.length);
-            console.log('[MyTeam] Exemplo de dados de jogador:', team.players[0]);
+    
+    this.myTeamService.getMyTeam().subscribe({
+      next: (team: MyTeam | null) => {
+        console.log('[MyTeamComponent] Time recebido:', team);
+        this.myTeam = team;
+        this.isLoading = false;
+        
+        if (team) {
+          this.updateFormationPositions();
+          console.log('[MyTeamComponent] Time carregado com sucesso. ID:', team.id);
+          
+          // Se as rodadas já estiverem carregadas, carregar pontuações
+          if (this.rodadaAtual) {
+            console.log('[MyTeamComponent] Rodada atual já está definida, carregando pontuações...');
             
-            // Verificar jogadores lesionados/contundidos como exemplo
-            const injuredPlayers = team.players.filter(p => p.status === 'Contundido');
-            console.log(`[MyTeam] Jogadores contundidos (${injuredPlayers.length}):`, 
-              injuredPlayers.map(p => p.apelido));
-              
-            // Verificar outros status de jogadores
-            const statusCounts: Record<string, number> = {};
-            team.players.forEach(p => {
-              if (p.status) {
-                statusCounts[p.status] = (statusCounts[p.status] || 0) + 1;
-              }
-            });
-            console.log('[MyTeam] Distribuição de status dos jogadores:', statusCounts);
+            if (this.rodadaAtual.status === 'em_andamento') {
+              console.log('[MyTeamComponent] Carregando pontuação parcial da rodada atual...');
+              this.loadParcialRodadaAtual();
+            }
+            
+            console.log('[MyTeamComponent] Carregando pontuações das rodadas anteriores...');
+            this.loadPontuacoesTime();
+          } else {
+            console.log('[MyTeamComponent] Rodada atual ainda não está definida. Pontuações serão carregadas depois.');
           }
-          if (team) {
-            this.updateFormationPositions();
-          }
-        },
-        error: (error) => {
-          console.error('Erro ao carregar o time:', error);
-          this.snackBar.open('Erro ao carregar o time. Tente novamente mais tarde.', 'OK', {
-            duration: 5000
-          });
+        } else {
+          console.log('[MyTeamComponent] Não foi encontrado um time para este usuário.');
         }
-      });
+      },
+      error: (error: any) => {
+        console.error('[MyTeamComponent] Erro ao carregar time:', error);
+        this.isLoading = false;
+        this.myTeam = null;
+        this.snackBar.open('Erro ao carregar seu time. Por favor, tente novamente.', 'OK', { duration: 5000 });
+      }
+    });
   }
 
   loadFormations(): void {
@@ -664,5 +1046,303 @@ export class MyTeamComponent implements OnInit {
   getInjuredPlayers(): MyTeamPlayer[] {
     if (!this.myTeam) return [];
     return this.myTeam.players.filter(p => p.status === 'Contundido');
+  }
+
+  // Métodos para lidar com a pontuação das rodadas
+  loadRodadas(): void {
+    console.log('[MyTeamComponent] Carregando rodada atual...');
+    this.pontuacaoService.getRodadaAtual().subscribe({
+      next: (rodada: Rodada) => {
+        console.log('[MyTeamComponent] Rodada atual recebida:', rodada);
+        this.rodadaAtual = rodada;
+        
+        // Carregar rodadas anteriores
+        console.log('[MyTeamComponent] Carregando rodadas anteriores a', rodada.id);
+        this.loadRodadasAnteriores(rodada.id);
+        
+        // Se o time já estiver carregado, carregar pontuações
+        if (this.myTeam) {
+          if (rodada.status === 'em_andamento') {
+            console.log('[MyTeamComponent] Rodada atual em andamento, carregando parcial...');
+            this.loadParcialRodadaAtual();
+          }
+          
+          // Carregar pontuações das rodadas anteriores
+          console.log('[MyTeamComponent] Carregando pontuações das rodadas anteriores...');
+          this.loadPontuacoesTime();
+        }
+      },
+      error: (error: any) => {
+        console.error('[MyTeamComponent] Erro ao carregar rodada atual:', error);
+        // Fallback para uma rodada padrão
+        this.rodadaAtual = {
+          id: 1,
+          nome: 'Rodada 1',
+          inicio: new Date(),
+          fim: new Date(),
+          status: 'em_andamento'
+        };
+        this.loadRodadasAnteriores(this.rodadaAtual.id);
+      }
+    });
+  }
+
+  loadRodadasAnteriores(rodadaAtualId: number): void {
+    console.log('[MyTeamComponent] Definindo rodadas anteriores...');
+    this.rodadasAnteriores = [];
+    
+    // Incluir todas as rodadas anteriores à atual
+    // Em um cenário real, buscaria da API, mas para simplificação, criamos baseado no ID atual
+    for (let i = 1; i < rodadaAtualId; i++) {
+      const rodadaAnterior: Rodada = {
+        id: i,
+        nome: `Rodada ${i}`,
+        inicio: new Date(),
+        fim: new Date(),
+        status: 'finalizada' // Todas as rodadas anteriores são consideradas finalizadas
+      };
+      
+      this.rodadasAnteriores.push(rodadaAnterior);
+      console.log(`[MyTeamComponent] Adicionada rodada anterior: ${i}`);
+    }
+    
+    // Ordenar das mais recentes para as mais antigas
+    this.rodadasAnteriores.reverse();
+    console.log(`[MyTeamComponent] ${this.rodadasAnteriores.length} rodadas anteriores foram definidas.`);
+  }
+
+  loadPontuacoesTime(): void {
+    if (!this.myTeam) {
+      console.log('[MyTeamComponent] Não há time carregado. Impossível carregar pontuações.');
+      return;
+    }
+    
+    console.log('[MyTeamComponent] Iniciando carregamento de pontuações para o time:', this.myTeam.id);
+    console.log('[MyTeamComponent] Rodadas anteriores disponíveis:', this.rodadasAnteriores.length);
+    
+    this.isLoadingPontuacoes = true;
+    this.pontuacoesRodadas = [];
+    
+    // Se não houver rodadas anteriores
+    if (this.rodadasAnteriores.length === 0) {
+      console.log('[MyTeamComponent] Não há rodadas anteriores para carregar pontuações.');
+      this.isLoadingPontuacoes = false;
+      return;
+    }
+    
+    // Criar um array de observables para cada rodada anterior
+    const observables = this.rodadasAnteriores.map(rodada => {
+      console.log(`[MyTeamComponent] Preparando para buscar pontuação da rodada ${rodada.id}`);
+      return this.pontuacaoService.getPontuacaoTimeRodada(this.myTeam!.id, rodada.id);
+    });
+    
+    // Processar os resultados
+    let completedRequests = 0;
+    observables.forEach((obs, index) => {
+      const rodadaId = this.rodadasAnteriores[index].id;
+      console.log(`[MyTeamComponent] Buscando pontuação da rodada ${rodadaId}...`);
+      
+      obs.subscribe({
+        next: (pontuacao: PontuacaoRodada | null) => {
+          console.log(`[MyTeamComponent] Resposta recebida para rodada ${rodadaId}:`, pontuacao ? 'Pontuação encontrada' : 'Nenhuma pontuação');
+          
+          if (pontuacao) {
+            this.pontuacoesRodadas.push(pontuacao);
+            console.log(`[MyTeamComponent] Pontuação da rodada ${rodadaId} adicionada. Total até agora: ${this.pontuacoesRodadas.length}`);
+          }
+          
+          completedRequests++;
+          if (completedRequests === observables.length) {
+            this.isLoadingPontuacoes = false;
+            // Ordenar por rodada (decrescente)
+            this.pontuacoesRodadas.sort((a, b) => b.rodada_id - a.rodada_id);
+            console.log(`[MyTeamComponent] Carregamento de pontuações concluído. Total: ${this.pontuacoesRodadas.length}`);
+          }
+        },
+        error: (error) => {
+          console.error(`[MyTeamComponent] Erro ao carregar pontuação da rodada ${rodadaId}:`, error);
+          completedRequests++;
+          if (completedRequests === observables.length) {
+            this.isLoadingPontuacoes = false;
+          }
+        }
+      });
+    });
+  }
+
+  loadParcialRodadaAtual(): void {
+    if (!this.myTeam || !this.rodadaAtual) return;
+    
+    // Apenas carregar parcial se a rodada estiver em andamento
+    if (this.rodadaAtual.status !== 'em_andamento') {
+      this.parcialRodadaAtual = null;
+      return;
+    }
+    
+    this.isLoadingPontuacoes = true;
+    this.pontuacaoService.calcularPontuacaoTime(this.myTeam, this.rodadaAtual.id)
+      .pipe(finalize(() => this.isLoadingPontuacoes = false))
+      .subscribe({
+        next: (pontuacao: PontuacaoRodada) => {
+          this.parcialRodadaAtual = pontuacao;
+        },
+        error: (error: any) => {
+          console.error('Erro ao calcular pontuação parcial:', error);
+          this.parcialRodadaAtual = null;
+        }
+      });
+  }
+
+  selecionarRodada(rodadaId: number): void {
+    if (this.rodadaSelecionadaId === rodadaId) {
+      // Se clicou na mesma rodada, fecha os detalhes
+      this.rodadaSelecionadaId = null;
+      this.detalhesRodadaSelecionada = [];
+      return;
+    }
+    
+    this.rodadaSelecionadaId = rodadaId;
+    this.carregarDetalhesRodada(rodadaId);
+  }
+
+  carregarDetalhesRodada(rodadaId: number): void {
+    if (!this.myTeam) return;
+    
+    this.isLoadingDetalhes = true;
+    this.detalhesRodadaSelecionada = [];
+    
+    this.pontuacaoService.getDetalhesPontuacaoTime(this.myTeam.id, rodadaId)
+      .pipe(finalize(() => this.isLoadingDetalhes = false))
+      .subscribe({
+        next: (detalhes: DetalhePontuacaoAtleta[]) => {
+          this.detalhesRodadaSelecionada = detalhes;
+        },
+        error: (error: any) => {
+          console.error(`Erro ao carregar detalhes da rodada ${rodadaId}:`, error);
+          this.snackBar.open(`Erro ao carregar detalhes da rodada ${rodadaId}.`, 'OK', { duration: 3000 });
+        }
+      });
+  }
+
+  recalcularPontuacaoRodada(rodadaId: number, event: Event): void {
+    event.stopPropagation(); // Evitar que o clique abra/feche o painel de detalhes
+    
+    if (!this.myTeam) return;
+    
+    this.snackBar.open(`Recalculando pontuação da rodada ${rodadaId}...`, '', { duration: 2000 });
+    
+    this.taskSchedulerService.recalcularPontuacaoRodada(rodadaId)
+      .subscribe({
+        next: (success: boolean) => {
+          if (success) {
+            // Recarregar os dados após o recálculo
+            this.loadPontuacoesTime();
+            if (this.rodadaSelecionadaId === rodadaId) {
+              this.carregarDetalhesRodada(rodadaId);
+            }
+          } else {
+            this.snackBar.open(`Erro ao recalcular pontuação da rodada ${rodadaId}.`, 'OK', { duration: 3000 });
+          }
+        },
+        error: (error: any) => {
+          console.error(`Erro ao recalcular pontuação da rodada ${rodadaId}:`, error);
+          this.snackBar.open(`Erro ao recalcular pontuação da rodada ${rodadaId}.`, 'OK', { duration: 3000 });
+        }
+      });
+  }
+
+  // Helper para formatar data
+  formatarData(data: Date): string {
+    return new Date(data).toLocaleDateString('pt-BR');
+  }
+
+  // Add these helper methods
+  getPositionCode(position: string): string {
+    if (!position) return '';
+    
+    // Try to match position abbreviations first
+    if (['GOL', 'ZAG', 'LAT', 'MEI', 'ATA', 'TEC'].includes(position)) {
+      return position;
+    }
+    
+    // Handle full position names
+    const positionMap: Record<string, string> = {
+      'Goleiro': 'GOL',
+      'Zagueiro': 'ZAG',
+      'Lateral': 'LAT',
+      'Meia': 'MEI',
+      'Meio-Campo': 'MEI',
+      'Meio-Campista': 'MEI',
+      'Atacante': 'ATA',
+      'Técnico': 'TEC',
+      'Tecnico': 'TEC'
+    };
+    
+    for (const [key, value] of Object.entries(positionMap)) {
+      if (position.includes(key)) {
+        return value;
+      }
+    }
+    
+    return '';
+  }
+  
+  getTeamLogoUrl(clubeAbreviacao: string): string {
+    if (!clubeAbreviacao) {
+      return 'assets/clubs/default-team.png';
+    }
+    
+    // Clean the club code
+    const cleanClubCode = clubeAbreviacao.replace('@', '');
+    
+    // Special handling for some problematic logos
+    const specialClubs: Record<string, string> = {
+      'MIR': 'assets/clubs/MIR.png',
+      'RBB': 'assets/clubs/RBB.png',
+      'JUV': 'assets/clubs/JUV.png'
+    };
+    
+    if (specialClubs[cleanClubCode]) {
+      return specialClubs[cleanClubCode];
+    }
+    
+    return `assets/clubs/${cleanClubCode}.png`;
+  }
+  
+  handleLogoError(event: any): void {
+    event.target.src = 'assets/clubs/default-team.png';
+  }
+  
+  hasScouts(scout: Record<string, number>): boolean {
+    return Object.keys(scout).length > 0;
+  }
+  
+  formatScouts(scout: Record<string, number>): string {
+    const scoutLabels: Record<string, string> = {
+      'G': 'Gol',
+      'A': 'Assistência',
+      'FT': 'Finalização na trave',
+      'FD': 'Finalização defendida',
+      'FF': 'Finalização para fora',
+      'FS': 'Falta sofrida',
+      'PS': 'Pênalti sofrido',
+      'PP': 'Pênalti perdido',
+      'DP': 'Defesa de pênalti',
+      'SG': 'Sem gol sofrido',
+      'DE': 'Defesa',
+      'GS': 'Gol sofrido',
+      'FC': 'Falta cometida',
+      'CA': 'Cartão amarelo',
+      'CV': 'Cartão vermelho',
+      'GC': 'Gol contra',
+      'PC': 'Pênalti cometido',
+      'I': 'Impedimento',
+      'PI': 'Passe interceptado'
+    };
+    
+    return Object.entries(scout)
+      .filter(([_, value]) => value > 0)
+      .map(([key, value]) => `${key}:${value}`)
+      .join(' ');
   }
 } 

@@ -705,8 +705,12 @@ export class GoogleAuthService {
     );
   }
 
+  /**
+   * Verifica se o usuário está autenticado
+   */
   isAuthenticated(): boolean {
-    return !!this.currentUser;
+    const user = this.currentUser;
+    return !!user && !!user.accessToken;
   }
 
   hasRole(role: string): boolean {

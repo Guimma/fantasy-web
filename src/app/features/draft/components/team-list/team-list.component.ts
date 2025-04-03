@@ -118,7 +118,7 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
                   <div *ngIf="team.players.length > 0" class="players-list">
                     <div *ngFor="let player of team.players" class="player-item">
                       <div class="team-logo">
-                        <img [src]="getTeamLogo(player.clube)" [alt]="player.clube || 'Time'" class="team-logo-img">
+                        <img [src]="getTeamLogo(player.clube)" [alt]="player.clube || 'Time'" class="team-logo-img" (error)="handleLogoError($event)">
                       </div>
                       <div class="player-info">
                         <div class="player-name">{{ player.apelido || player.nome || 'Sem nome' }}</div>
@@ -597,5 +597,11 @@ export class TeamListComponent {
   // Método para obter o logo do time
   getTeamLogo(club: string): string {
     return this.teamLogoService.getTeamLogoPath(club);
+  }
+
+  // Handle logo loading errors
+  handleLogoError(event: any): void {
+    console.warn(`Logo load error for: ${event.target.alt}`);
+    event.target.src = 'assets/clubs/default-team.png';
   }
 } 

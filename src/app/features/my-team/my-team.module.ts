@@ -3,6 +3,7 @@ import { RouterModule, Routes } from '@angular/router';
 
 // Services
 import { MyTeamService } from './services/my-team.service';
+import { PontuacaoService } from './services/pontuacao.service';
 
 const routes: Routes = [
   { 
@@ -16,7 +17,8 @@ const routes: Routes = [
     RouterModule.forChild(routes)
   ],
   providers: [
-    MyTeamService
+    MyTeamService,
+    PontuacaoService
   ]
 })
 export class MyTeamModule { } 

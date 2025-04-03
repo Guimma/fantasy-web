@@ -1,6 +1,6 @@
 import { ApplicationConfig, provideZoneChangeDetection, APP_INITIALIZER } from '@angular/core';
 import { provideRouter, withHashLocation } from '@angular/router';
-import { provideHttpClient, withFetch } from '@angular/common/http';
+import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import { TranslateModule, TranslateLoader } from '@ngx-translate/core';
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
 import { HttpClient } from '@angular/common/http';
@@ -9,6 +9,7 @@ import { importProvidersFrom } from '@angular/core';
 import { CoreModule } from './core.module';
 import { CartolaApiService } from './core/services/cartola-api.service';
 import { AppInitializerService } from './core/services/app-initializer.service';
+import { googleAuthInterceptor } from './core/interceptors/google-auth.interceptor';
 
 import { routes } from './app.routes';
 import { provideClientHydration } from '@angular/platform-browser';
@@ -29,7 +30,10 @@ export const appConfig: ApplicationConfig = {
     provideZoneChangeDetection({ eventCoalescing: true }), 
     provideRouter(routes, withHashLocation()), 
     provideClientHydration(),
-    provideHttpClient(withFetch()),
+    provideHttpClient(
+      withFetch(),
+      withInterceptors([googleAuthInterceptor])
+    ),
     provideAnimations(),
     importProvidersFrom(CoreModule),
     importProvidersFrom(

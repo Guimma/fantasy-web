@@ -106,7 +106,7 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
                 <div *ngFor="let player of getPlayersByPosition(position)" class="player-card">
                   <div class="player-card-content">
                     <div class="team-logo">
-                      <img [src]="getTeamLogo(player.clube)" [alt]="player.clube || 'Time'" class="team-logo-img">
+                      <img [src]="getTeamLogo(player.clube)" [alt]="player.clube || 'Time'" class="team-logo-img" (error)="handleLogoError($event)">
                     </div>
                     <div class="player-info">
                       <div class="player-name">{{ player.apelido || player.nome || 'Sem nome' }}</div>
@@ -480,5 +480,11 @@ export class CurrentTeamComponent {
     };
     
     return positionMap[position] || 'SEM';
+  }
+
+  // Handle logo loading errors
+  handleLogoError(event: any): void {
+    console.warn(`Logo load error for: ${event.target.alt}`);
+    event.target.src = 'assets/clubs/default-team.png';
   }
 } 

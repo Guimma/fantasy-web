@@ -30,10 +30,13 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
          cdkDrag [cdkDragData]="player" *ngIf="draggable; else nonDraggable">
       <div class="player-card-content">
         <div class="team-logo">
-          <img [src]="getClubShieldUrl()" [alt]="player.clube" class="team-logo-img">
+          <img [src]="getClubShieldUrl()" [alt]="player.clube" class="team-logo-img" (error)="handleLogoError($event)">
         </div>
         <div class="player-info">
-          <div class="player-name">{{ player.apelido }}</div>
+          <div class="player-name-row">
+            <div class="player-name" [matTooltip]="player.apelido">{{ player.apelido }}</div>
+            <div *ngIf="hasPontuacao()" class="player-points">{{ getPontuacao() | number:'1.1-1' }}</div>
+          </div>
           <div class="player-meta">
             <span class="player-position" [attr.data-position]="getPositionCode(player.posicao)">
               {{ (player.posicaoAbreviacao || player.posicao || 'SEM').toUpperCase() }}
@@ -62,10 +65,13 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
            }">
         <div class="player-card-content">
           <div class="team-logo">
-            <img [src]="getClubShieldUrl()" [alt]="player.clube" class="team-logo-img">
+            <img [src]="getClubShieldUrl()" [alt]="player.clube" class="team-logo-img" (error)="handleLogoError($event)">
           </div>
           <div class="player-info">
-            <div class="player-name">{{ player.apelido }}</div>
+            <div class="player-name-row">
+              <div class="player-name" [matTooltip]="player.apelido">{{ player.apelido }}</div>
+              <div *ngIf="hasPontuacao()" class="player-points">{{ getPontuacao() | number:'1.1-1' }}</div>
+            </div>
             <div class="player-meta">
               <span class="player-position" [attr.data-position]="getPositionCode(player.posicao)">
                 {{ (player.posicaoAbreviacao || player.posicao || 'SEM').toUpperCase() }}
@@ -160,12 +166,16 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
     }
 
     .team-logo {
-      width: 28px;
-      height: 28px;
+      width: 38px;
+      height: 38px;
       display: flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
+      background-color: white;
+      border-radius: 50%;
+      padding: 2px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
     }
 
     .team-logo-img {
@@ -179,13 +189,31 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
       min-width: 0;
     }
 
+    .player-name-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
     .player-name {
       font-weight: 500;
-      margin-bottom: 4px;
       font-size: 14px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      max-width: calc(100% - 45px);
+    }
+    
+    .player-points {
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--primary-color);
+      background-color: rgba(33, 150, 243, 0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+      min-width: 35px;
+      text-align: center;
     }
 
     .player-meta {
@@ -293,11 +321,43 @@ export class PlayerCardComponent {
     this.remove.emit(this.player);
   }
   
+  /**
+   * Check if the player has a pontuacao value
+   */
+  hasPontuacao(): boolean {
+    return (this.player as any).pontuacao !== undefined;
+  }
+  
+  /**
+   * Get the player's pontuacao value safely
+   */
+  getPontuacao(): number {
+    return (this.player as any).pontuacao || 0;
+  }
+  
   getClubShieldUrl(): string {
     if (!this.player.clubeAbreviacao) {
-      return 'assets/clubs/default.png';
+      console.log(`Abreviação de clube não encontrada para: ${this.player.apelido}`);
+      return 'assets/clubs/default-team.png';
     }
-    return this.teamLogoService.getTeamLogoPath(this.player.clubeAbreviacao);
+    
+    // Clean the club code in case it has @ characters
+    const cleanClubCode = this.player.clubeAbreviacao.replace('@', '');
+    
+    // Special handling for some problematic logos
+    const specialClubs: Record<string, string> = {
+      'MIR': 'assets/clubs/MIR.png',
+      'RBB': 'assets/clubs/RBB.png',
+      'JUV': 'assets/clubs/JUV.png'
+    };
+    
+    if (specialClubs[cleanClubCode]) {
+      console.log(`Usando logo especial para ${cleanClubCode}: ${this.player.apelido}`);
+      return specialClubs[cleanClubCode];
+    }
+    
+    console.log(`Buscando logo para clube ${cleanClubCode}: ${this.player.apelido}`);
+    return this.teamLogoService.getTeamLogoPath(cleanClubCode);
   }
   
   getPositionCode(position: string): string {
@@ -331,7 +391,18 @@ export class PlayerCardComponent {
   }
   
   getStatusLabel(status: string): string {
-    return status || '';
+    // Map common status values to their user-friendly labels
+    const statusMap: Record<string, string> = {
+      'Disponível': 'Disponível',
+      'Ativo': 'Disponível',
+      'Contundido': 'Contundido',
+      'Dúvida': 'Dúvida',
+      'Suspenso': 'Suspenso',
+      'Provável': 'Provável',
+      'Nulo': 'Nulo'
+    };
+    
+    return statusMap[status] || status || '';
   }
   
   isInjured(): boolean {
@@ -348,5 +419,11 @@ export class PlayerCardComponent {
   
   isNull(): boolean {
     return this.player.status === 'Nulo';
+  }
+
+  // Handle logo loading errors
+  handleLogoError(event: any): void {
+    console.warn(`Logo load error for: ${event.target.alt}`);
+    event.target.src = 'assets/clubs/default-team.png';
   }
 } 

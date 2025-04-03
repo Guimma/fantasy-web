@@ -32,28 +32,49 @@ export class CartolaApiService {
   // Obter a rodada atual
   getCurrentRound(): Observable<any> {
     console.log('[CartolaAPI] Obtendo rodada atual');
+    
     return this.http.get<any>(`${this.BASE_URL}/rodadas`).pipe(
       map(rounds => {
         console.log('[CartolaAPI] Rodadas obtidas:', rounds);
         if (Array.isArray(rounds)) {
           // Encontrar a rodada atual baseada na data atual
           const now = new Date();
+          console.log('[CartolaAPI] Data atual:', now);
+          
           const currentRound = rounds.find(round => {
             const inicio = new Date(round.inicio);
             const fim = new Date(round.fim);
+            console.log(`[CartolaAPI] Verificando rodada ${round.rodada_id}: inicio=${inicio}, fim=${fim}`);
             return now >= inicio && now <= fim;
           });
           
           // Se não encontrar rodada em andamento, retornar a próxima
           if (!currentRound) {
+            console.log('[CartolaAPI] Nenhuma rodada em andamento encontrada, buscando a próxima...');
+            
             // Ordenar por data de início e encontrar a próxima
             const sortedRounds = [...rounds].sort((a, b) => 
               new Date(a.inicio).getTime() - new Date(b.inicio).getTime()
             );
             
-            const nextRound = sortedRounds.find(round => 
-              new Date(round.inicio) > now
-            );
+            const nextRound = sortedRounds.find(round => {
+              const inicio = new Date(round.inicio);
+              console.log(`[CartolaAPI] Verificando se rodada ${round.rodada_id} é a próxima: inicio=${inicio} > now=${now}`);
+              return inicio > now;
+            });
+            
+            // Se não houver próxima, retornar a última finalizada
+            if (!nextRound) {
+              console.log('[CartolaAPI] Nenhuma rodada futura encontrada, buscando a última finalizada...');
+              
+              // Ordenar por data de fim (decrescente) e pegar a primeira (mais recente)
+              const lastRound = [...rounds].sort((a, b) => 
+                new Date(b.fim).getTime() - new Date(a.fim).getTime()
+              )[0];
+              
+              console.log('[CartolaAPI] Última rodada finalizada identificada:', lastRound);
+              return lastRound;
+            }
             
             const result = nextRound || { rodada_id: 1 };
             console.log('[CartolaAPI] Próxima rodada identificada:', result);
@@ -68,6 +89,7 @@ export class CartolaApiService {
       }),
       catchError(error => {
         console.error('[CartolaAPI] Erro ao obter rodada atual:', error);
+        // Retornar rodada padrão em caso de erro
         return of({ rodada_id: 1 });
       })
     );
@@ -237,10 +259,11 @@ export class CartolaApiService {
       290: 'Athletico-PR',
       292: 'Sport',
       293: 'Cuiabá',
-      294: 'Bragantino',
-      327: 'Juventude',
       356: 'Fortaleza',
-      354: 'Ceará'
+      354: 'Ceará',
+      2305: 'Mirassol',
+      280: 'Bragantino',
+      286: 'Juventude'
     };
     return clubes[clubeId] || 'Clube Desconhecido';
   }
@@ -266,11 +289,13 @@ export class CartolaApiService {
       290: 'CAP',
       292: 'SPT',
       293: 'CUI',
-      294: 'RBB',
-      327: 'JUV',
+      280: 'RBB',
+      286: 'JUV',
       356: 'FOR',
-      354: 'CEA'
+      354: 'CEA',
+      2305: 'MIR'
     };
+    
     return abrevs[clubeId] || 'DESC';
   }
 

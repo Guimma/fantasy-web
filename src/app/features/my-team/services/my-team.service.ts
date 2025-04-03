@@ -29,17 +29,25 @@ export class MyTeamService {
   private readonly TEAM_CACHE_KEY = 'my_team_data';
   private readonly FORMATIONS_CACHE_KEY = 'formations_data';
 
-  constructor() { }
+  constructor() { 
+    // Force a delayed cache clear to ensure all services are initialized
+    setTimeout(() => {
+      console.log('[MyTeamService] Limpando cache ao inicializar o serviço');
+      this.clearTeamCache();
+    }, 500);
+  }
 
   // Método para obter o time do usuário atual
-  getMyTeam(): Observable<MyTeam | null> {
-    // Verificar se temos o time em cache
-    // const cachedTeam = this.storageService.get<MyTeam>(this.TEAM_CACHE_KEY);
-    // if (cachedTeam) {
-    //   return of(cachedTeam);
-    // }
+  getMyTeam(forceRefresh: boolean = false): Observable<MyTeam | null> {
+    // Verificar se temos o time em cache e se não estamos forçando refresh
+    const cachedTeam = this.storageService.get<MyTeam>(this.TEAM_CACHE_KEY);
+    if (cachedTeam && !forceRefresh) {
+      console.log('[MyTeamService] Usando time em cache');
+      return of(cachedTeam);
+    }
 
-    // Caso não tenha em cache, buscar o time do usuário atual
+    console.log('[MyTeamService] Buscando time do servidor' + (forceRefresh ? ' (refresh forçado)' : ''));
+    // Buscar o time do usuário atual
     const currentUser = this.authService.currentUser;
     if (!currentUser) {
       return of(null);
@@ -90,30 +98,146 @@ export class MyTeamService {
 
   // Método para buscar os jogadores de um time
   private getTeamPlayers(team: MyTeam): Observable<MyTeam> {
+    console.log(`[MyTeamService] Buscando jogadores para o time: ${team.id}`);
+    
     // Buscar a relação de jogadores do time
     return this.makeAuthorizedRequest<any>('get',
       `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.ELENCOS_TIMES_RANGE}`
     ).pipe(
       switchMap(response => {
         if (!response.values || response.values.length <= 1) {
+          console.log('[MyTeamService] Sem dados na aba ElencosTimes');
           return of(team);
         }
 
-        // Filtrar apenas os jogadores do time atual
+        // Mostrar os primeiros registros da planilha para debug
+        const headers = response.values[0];
+        console.log('[MyTeamService] Cabeçalhos da aba ElencosTimes:', headers);
+        if (response.values.length > 1) {
+          console.log('[MyTeamService] Exemplo de registro 1:', response.values[1]);
+        }
+        if (response.values.length > 2) {
+          console.log('[MyTeamService] Exemplo de registro 2:', response.values[2]);
+        }
+
+        console.log('[MyTeamService] Dados da aba ElencosTimes recebidos:', response.values.length - 1, 'registros');
+
+        // Filtrar apenas os jogadores do time atual - usar o ID exato
         const teamPlayersRows = response.values.slice(1)
           .filter((row: any) => row[1] === team.id);
         
+        console.log(`[MyTeamService] ${teamPlayersRows.length} jogadores encontrados para o time ${team.id}`);
+        
+        // Mostrar os jogadores encontrados para debug
+        if (teamPlayersRows.length > 0) {
+          teamPlayersRows.forEach((row: any, index: number) => {
+            console.log(`[MyTeamService] Jogador ${index + 1} do time ${team.id}:`, {
+              id_registro: row[0],
+              id_time: row[1],
+              id_atleta: row[2],
+              id_cartola: row[3],
+              status: row[4]
+            });
+          });
+        }
+        
         if (teamPlayersRows.length === 0) {
+          console.log(`[MyTeamService] ATENÇÃO: Nenhum jogador encontrado para o time ${team.id}!`);
           return of(team);
         }
 
-        // Extrair APENAS os IDs do Cartola (coluna id_cartola)
+        // Extrair apenas os IDs do Cartola (coluna id_cartola) e garantir que são strings
         const cartolaIds = teamPlayersRows
-          .map((row: any) => row[3]) // id_cartola está na posição 3
-          .filter((id: string) => !!id); // Filtrar IDs nulos ou vazios
+          .map((row: any) => row[3] ? row[3].toString() : null) // id_cartola está na posição 3
+          .filter((id: string | null) => id !== null && id !== ''); // Remover IDs vazios ou null
+        
+        console.log(`[MyTeamService] ${cartolaIds.length} IDs Cartola válidos extraídos:`, cartolaIds);
 
-        // Buscar os detalhes dos jogadores
-        return this.getAthletesDetails(cartolaIds).pipe(
+        // Mapear os IDs para um objeto com status
+        interface PlayerStatus {
+          status: string;
+        }
+        
+        const playerStatuses: { [key: string]: PlayerStatus } = {};
+        teamPlayersRows.forEach((row: any) => {
+          if (row[3]) {
+            const id = row[3].toString(); // id_cartola
+            playerStatuses[id] = {
+              status: row[4] || 'Ativo' // status_time está na posição 4
+            };
+          }
+        });
+
+        // Se não temos IDs, retornar time sem jogadores
+        if (cartolaIds.length === 0) {
+          console.log('[MyTeamService] Nenhum ID Cartola válido encontrado, retornando time sem jogadores');
+          team.players = [];
+          return of(team);
+        }
+
+        // Buscar todos os atletas do Cartola API
+        return this.cartolaApiService.getAllAthletes().pipe(
+          map(response => {
+            if (!response || !response.atletas) {
+              console.log('[MyTeamService] Nenhum atleta retornado da API do Cartola');
+              return [];
+            }
+            
+            console.log(`[MyTeamService] API retornou ${Object.keys(response.atletas).length} atletas, filtrando para o time...`);
+            
+            // Lista de IDs para verificar após filtragem
+            const foundIds: string[] = [];
+            
+            // Filtrar os atletas pelos IDs Cartola
+            const athletesData = Object.values(response.atletas)
+              .filter((athlete: any) => {
+                const idCartola = athlete.atleta_id.toString();
+                const isIncluded = cartolaIds.includes(idCartola);
+                
+                // Para debug, mostrar os que estão sendo incluídos
+                if (isIncluded) {
+                  foundIds.push(idCartola);
+                  console.log(`[MyTeamService] Incluindo atleta: id=${idCartola}, nome=${athlete.apelido}`);
+                }
+                
+                return isIncluded;
+              })
+              .map((athlete: any) => {
+                const mappedAthlete = this.cartolaApiService.mapAthleteFromApi(athlete);
+                
+                // Aplicar o status do time, se disponível
+                const idCartola = athlete.atleta_id.toString();
+                if (playerStatuses[idCartola]) {
+                  // Map ElencosTimes status to Cartola status format
+                  const statusMap: Record<string, string> = {
+                    'Ativo': 'Disponível',
+                    'Contundido': 'Contundido',
+                    'Dúvida': 'Dúvida',
+                    'Suspenso': 'Suspenso',
+                    'Provável': 'Provável',
+                    'Nulo': 'Nulo'
+                  };
+
+                  // Use the mapped status or the original one if no mapping exists
+                  const rawStatus = playerStatuses[idCartola].status;
+                  mappedAthlete.status = statusMap[rawStatus] || rawStatus;
+                  console.log(`[MyTeamService] Aplicando status para ${mappedAthlete.apelido}: ${rawStatus} -> ${mappedAthlete.status}`);
+                }
+                
+                return mappedAthlete;
+              });
+            
+            // Verificar IDs não encontrados
+            const notFoundIds = cartolaIds.filter((id: string) => !foundIds.includes(id));
+            if (notFoundIds.length > 0) {
+              console.log(`[MyTeamService] ATENÇÃO: ${notFoundIds.length} IDs Cartola não encontrados na API:`, notFoundIds);
+            }
+            
+            console.log(`[MyTeamService] ${athletesData.length} atletas encontrados para o time ${team.id}:`, 
+              athletesData.map((a: any) => `${a.apelido} (ID Cartola: ${a.idCartola})`));
+            
+            return athletesData;
+          }),
           switchMap(athletes => {
             // Converter para MyTeamPlayer e adicionar ao time
             team.players = athletes.map(athlete => ({
@@ -124,6 +248,10 @@ export class MyTeamService {
 
             // Buscar a escalação atual
             return this.getTeamLineup(team);
+          }),
+          catchError(error => {
+            console.error('[MyTeamService] Erro ao obter detalhes dos atletas:', error);
+            return of(team);
           })
         );
       })
@@ -515,11 +643,12 @@ export class MyTeamService {
     );
   }
 
-  // Método para limpar a escalação atual do time
-  private clearTeamLineup(teamId: string): Observable<boolean> {
-    // Como estamos apenas trabalhando localmente com a lineup, 
-    // não precisamos limpar nada no servidor
-    return of(true);
+  // Método para limpar o cache do time
+  clearTeamCache(): void {
+    console.log('[MyTeamService] Limpando cache do time');
+    this.storageService.remove(this.TEAM_CACHE_KEY);
+    // Também invalidar o cache de atletas da API do Cartola
+    this.cartolaApiService.invalidateCache();
   }
 
   // Método para fazer requisições autorizadas com o token
@@ -547,5 +676,91 @@ export class MyTeamService {
     }
 
     return of(null as unknown as T);
+  }
+
+  // Método para atualizar a pontuação da última rodada de um time
+  updateTeamLastRoundScore(teamId: string, score: number): Observable<boolean> {
+    // Identificar o time na planilha
+    return this.makeAuthorizedRequest<any>('get',
+      `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.TEAMS_RANGE}`
+    ).pipe(
+      switchMap(response => {
+        if (!response.values || response.values.length <= 1) {
+          this.notificationService.error('Não foi possível encontrar o time para atualizar a pontuação');
+          return of(false);
+        }
+
+        // Obter o cabeçalho para identificar os índices das colunas
+        const header = response.values[0];
+        const colIndexPontuacaoUltimaRodada = header.findIndex((col: string) => 
+          col.toLowerCase().includes('pontuacao_ultima_rodada') || 
+          col.toLowerCase().includes('pontuação_última_rodada')
+        );
+
+        // Se não encontramos a coluna, não podemos continuar
+        if (colIndexPontuacaoUltimaRodada === -1) {
+          this.notificationService.error('Estrutura da planilha não tem coluna para pontuação da última rodada');
+          return of(false);
+        }
+
+        // Procurar o time do usuário atual
+        const teams = response.values.slice(1);
+        const teamRowIndex = teams.findIndex((row: any) => row[0] === teamId);
+        
+        if (teamRowIndex === -1) {
+          this.notificationService.error('Time não encontrado na planilha');
+          return of(false);
+        }
+
+        // Ajustar para o índice real na planilha (inclui o cabeçalho)
+        const rowIndex = teamRowIndex + 2; // +1 pelo slice e +1 pelo cabeçalho
+
+        // Construir a notação A1 para a célula que queremos atualizar
+        const columnLetter = this.columnToLetter(colIndexPontuacaoUltimaRodada + 1); // +1 porque as colunas no Google Sheets começam em 1
+        const range = `Times!${columnLetter}${rowIndex}`;
+
+        // Atualizar o valor na planilha
+        return this.makeAuthorizedRequest<any>('put',
+          `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`,
+          {
+            values: [[score.toString()]]
+          }
+        ).pipe(
+          map(response => {
+            if (response && response.updatedCells > 0) {
+              this.notificationService.success('Pontuação da última rodada atualizada com sucesso');
+              
+              // Atualizar a versão em cache se existir
+              const cachedTeam = this.storageService.get<MyTeam>(this.TEAM_CACHE_KEY);
+              if (cachedTeam && cachedTeam.id === teamId) {
+                cachedTeam.pontuacaoUltimaRodada = score;
+                this.storageService.set(this.TEAM_CACHE_KEY, cachedTeam);
+              }
+              
+              return true;
+            } else {
+              this.notificationService.error('Erro ao atualizar pontuação da última rodada');
+              return false;
+            }
+          }),
+          catchError(error => {
+            console.error('Erro ao atualizar pontuação da última rodada:', error);
+            this.notificationService.error('Erro ao atualizar pontuação da última rodada');
+            return of(false);
+          })
+        );
+      })
+    );
+  }
+
+  // Método auxiliar para converter número de coluna para letra (1 = A, 2 = B, etc.)
+  private columnToLetter(column: number): string {
+    let temp, letter = '';
+    while (column > 0) {
+      temp = (column - 1) % 26;
+      letter = String.fromCharCode(temp + 65) + letter;
+      column = (column - temp - 1) / 26;
+    }
+    return letter;
   }
 } 

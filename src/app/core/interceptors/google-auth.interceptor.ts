@@ -4,15 +4,52 @@ import {
   HttpHandler,
   HttpEvent,
   HttpInterceptor,
-  HttpErrorResponse
+  HttpErrorResponse,
+  HttpInterceptorFn
 } from '@angular/common/http';
 import { Observable, throwError, BehaviorSubject, of, timer, Subject } from 'rxjs';
 import { catchError, switchMap, filter, take, finalize, timeout, tap, retryWhen, delayWhen, mergeMap } from 'rxjs/operators';
 import { GoogleAuthService } from '../services/google-auth.service';
 import { Router } from '@angular/router';
+import { inject } from '@angular/core';
 
 // Evento global para notificar quando um token precisa ser renovado manualmente
 export const tokenRenewalNeeded = new Subject<void>();
+
+// Função interceptora para uso com o provideHttpClient
+export const googleAuthInterceptor: HttpInterceptorFn = (req, next) => {
+  const authService = inject(GoogleAuthService);
+  
+  // Apenas intercepta chamadas para a API do Google Sheets
+  if (!req.url.includes('sheets.googleapis.com')) {
+    return next(req);
+  }
+  
+  console.log('GoogleAuthInterceptor: Interceptando requisição para Google Sheets', req.url);
+  
+  return next(req).pipe(
+    // Adiciona timeout de 30 segundos para todas as requisições
+    timeout(30000),
+    catchError((error: HttpErrorResponse) => {
+      if (error.status === 401) {
+        console.log('GoogleAuthInterceptor: Erro 401 detectado, token expirado');
+        console.error('Seu token de acesso expirou. Faça login novamente para continuar.');
+        // Notificar aplicação para renovar token
+        tokenRenewalNeeded.next();
+        return throwError(() => new Error('TOKEN_EXPIRED'));
+      } else if (error.status === 403) {
+        console.error('GoogleAuthInterceptor: Erro 403 - Permissão negada');
+        console.error('Você não tem permissão para acessar este recurso');
+        return throwError(() => error);
+      } else if (error.status === 0 || (error as any).name?.includes('Timeout')) {
+        console.error('GoogleAuthInterceptor: Erro de conexão ou timeout', error);
+        console.error('Problemas de conexão. Verifique sua internet e tente novamente.');
+        return throwError(() => error);
+      }
+      return throwError(() => error);
+    })
+  );
+};
 
 @Injectable()
 export class GoogleAuthInterceptor implements HttpInterceptor {
