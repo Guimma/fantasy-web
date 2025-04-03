@@ -189,20 +189,22 @@ import { Rodada, PontuacaoRodada, DetalhePontuacaoAtleta } from './models/pontua
                               </div>
                               
                               <mat-list dense>
-                                <mat-list-item *ngFor="let detalhe of detalhesRodadaSelecionada">
+                                <mat-list-item *ngFor="let player of getAllPlayersWithPontuacao(detalhesRodadaSelecionada, pontuacao.rodada_id)">
                                   <div class="player-score-item">
                                     <div class="player-info">
-                                      <span class="player-position" [attr.data-position]="getPositionCode(detalhe.atleta.posicao)">
-                                        {{ detalhe.atleta.posicaoAbreviacao }}
+                                      <span class="player-position" [attr.data-position]="getPositionCode(player.posicao)">
+                                        {{ player.posicaoAbreviacao }}
                                       </span>
-                                      <img [src]="getTeamLogoUrl(detalhe.atleta.clubeAbreviacao)" 
-                                           [alt]="detalhe.atleta.clube"
+                                      <img [src]="getTeamLogoUrl(player.clubeAbreviacao)" 
+                                           [alt]="player.clube"
                                            class="player-club-logo"
                                            (error)="handleLogoError($event)">
-                                      <span class="player-name" [matTooltip]="detalhe.atleta.apelido">{{ detalhe.atleta.apelido }}</span>
+                                      <span class="player-name" [matTooltip]="player.apelido" [class.not-considered]="!player.consideradoNaCalculacao">
+                                        {{ player.apelido }}
+                                      </span>
                                     </div>
-                                    <div class="player-score" [ngClass]="{'negative': detalhe.pontuacao < 0, 'positive': detalhe.pontuacao > 0}">
-                                      {{ detalhe.pontuacao | number:'1.2-2' }}
+                                    <div class="player-score" [ngClass]="{'negative': player.pontuacao < 0, 'positive': player.pontuacao > 0}">
+                                      {{ player.pontuacao | number:'1.2-2' }}
                                     </div>
                                   </div>
                                 </mat-list-item>
@@ -766,6 +768,11 @@ import { Rodada, PontuacaoRodada, DetalhePontuacaoAtleta } from './models/pontua
       color: var(--primary-color);
       margin-bottom: 16px;
       letter-spacing: 0.5px;
+    }
+    
+    .player-name.not-considered {
+      text-decoration: line-through;
+      color: rgba(0, 0, 0, 0.6);
     }
   `
 })
@@ -1344,5 +1351,62 @@ export class MyTeamComponent implements OnInit {
       .filter(([_, value]) => value > 0)
       .map(([key, value]) => `${key}:${value}`)
       .join(' ');
+  }
+
+  /**
+   * Combine all team players with the players who have points
+   * to display a complete list in the score panel.
+   */
+  getAllPlayersWithPontuacao(detalhes: DetalhePontuacaoAtleta[], rodadaId: number): any[] {
+    if (!this.myTeam) return [];
+    
+    const result: any[] = [];
+    const detalhesMap = new Map<string, DetalhePontuacaoAtleta>();
+    
+    // Create a map of athletes with their details
+    detalhes.forEach(detalhe => {
+      detalhesMap.set(detalhe.atleta.id, detalhe);
+    });
+    
+    // Add all players from the team
+    this.myTeam.players.forEach(player => {
+      const detalhe = detalhesMap.get(player.id);
+      
+      if (detalhe) {
+        // Player has points data
+        result.push({
+          ...detalhe.atleta,
+          pontuacao: detalhe.pontuacao,
+          scout: detalhe.scout,
+          consideradoNaCalculacao: true
+        });
+      } else {
+        // Player doesn't have points data
+        result.push({
+          id: player.id,
+          apelido: player.apelido,
+          posicao: player.posicao,
+          posicaoAbreviacao: player.posicaoAbreviacao,
+          clube: player.clube,
+          clubeAbreviacao: player.clubeAbreviacao,
+          pontuacao: 0,
+          scout: {},
+          consideradoNaCalculacao: false
+        });
+      }
+    });
+    
+    // Sort by position (GOL first, then ZAG, LAT, MEI, ATA, TEC)
+    const positionOrder = { 'GOL': 1, 'ZAG': 2, 'LAT': 3, 'MEI': 4, 'ATA': 5, 'TEC': 6 };
+    
+    return result.sort((a, b) => {
+      const posA = this.getPositionCode(a.posicao);
+      const posB = this.getPositionCode(b.posicao);
+      
+      const orderA = positionOrder[posA as keyof typeof positionOrder] || 99;
+      const orderB = positionOrder[posB as keyof typeof positionOrder] || 99;
+      
+      return orderA - orderB;
+    });
   }
 } 
