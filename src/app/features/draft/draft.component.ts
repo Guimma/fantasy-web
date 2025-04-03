@@ -154,6 +154,7 @@ import { DraftStatus, DraftTeam, Athlete, DraftConfig, DraftOrder } from './mode
                 [draftOrder]="draftOrder"
                 [currentOrderIndex]="currentOrderIndex"
                 [draftStatus]="draftStatus"
+                [showDebugInfo]="true"
                 [isLoading]="isLoading">
               </app-team-list>
             </section>

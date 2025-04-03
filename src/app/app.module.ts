@@ -4,16 +4,13 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { HttpClientModule } from '@angular/common/http';
 import { RouterModule } from '@angular/router';
 
-import { AppComponent } from './app.component';
 import { AppRoutingModule } from './app-routing.module';
 import { AuthModule } from './core/auth/auth.module';
 import { SharedModule } from './shared/shared.module';
 import { ThemeModule } from './core/theme/theme.module';
+import { MarketMonitorService } from './core/services/market-monitor.service';
 
 @NgModule({
-  declarations: [
-    AppComponent
-  ],
   imports: [
     BrowserModule,
     BrowserAnimationsModule,
@@ -24,7 +21,9 @@ import { ThemeModule } from './core/theme/theme.module';
     SharedModule,
     ThemeModule
   ],
-  providers: [],
-  bootstrap: [AppComponent]
+  providers: [
+    // Adicionar o serviço de monitoramento do mercado para iniciar automaticamente
+    MarketMonitorService
+  ]
 })
 export class AppModule { } 

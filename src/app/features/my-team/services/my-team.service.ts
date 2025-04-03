@@ -4,6 +4,7 @@ import { Observable, of, switchMap, map, tap, catchError } from 'rxjs';
 import { GoogleAuthService } from '../../../core/services/google-auth.service';
 import { StorageService } from '../../../core/services/storage.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { CartolaApiService } from '../../../core/services/cartola-api.service';
 import { MyTeam, MyTeamPlayer, LineupPlayer } from '../models/my-team.model';
 import { Formation, FormationPosition, SheetFormation, createHeaderMap, mapRowToSheetFormation, parseFormationNumbers, DEFAULT_FORMATIONS } from '../../../core/models/formation.model';
 import { Athlete } from '../../draft/models/draft.model';
@@ -16,11 +17,12 @@ export class MyTeamService {
   private authService = inject(GoogleAuthService);
   private storageService = inject(StorageService);
   private notificationService = inject(NotificationService);
+  private cartolaApiService = inject(CartolaApiService);
   
   private readonly SHEET_ID = '1n3FjgSy19YCHZhsRA3HR0d92o3yAHhLBjYwEHSYJwjI';
   private readonly TEAMS_RANGE = 'Times!A:I'; // id_time, id_liga, id_usuario, nome, saldo, formacao_atual, pontuacao_total, pontuacao_ultima_rodada, colocacao
   private readonly ATHLETES_RANGE = 'Atletas!A:P'; // id_atleta, id_cartola, nome, apelido, foto_url, posicao, posicao_abreviacao, clube, clube_abreviacao, preco, media_pontos, jogos, status, ultima_atualizacao, data_criacao
-  private readonly ELENCOS_TIMES_RANGE = 'ElencosTimes!A:F'; // id_registro, id_time, id_atleta, status_time, valor_compra, data_aquisicao
+  private readonly ELENCOS_TIMES_RANGE = 'ElencosTimes!A:G'; // id_registro, id_time, id_atleta, id_cartola, status_time, valor_compra, data_aquisicao
   private readonly LINEUP_RANGE = 'Escalacoes!A:E'; // id_escalacao, id_time, id_atleta, posicao, rodada_atual
   private readonly FORMACOES_RANGE = 'FormacoesPermitidas!A:D'; // id_formacao, nome, descricao, ativa
   
@@ -32,10 +34,10 @@ export class MyTeamService {
   // Método para obter o time do usuário atual
   getMyTeam(): Observable<MyTeam | null> {
     // Verificar se temos o time em cache
-    const cachedTeam = this.storageService.get<MyTeam>(this.TEAM_CACHE_KEY);
-    if (cachedTeam) {
-      return of(cachedTeam);
-    }
+    // const cachedTeam = this.storageService.get<MyTeam>(this.TEAM_CACHE_KEY);
+    // if (cachedTeam) {
+    //   return of(cachedTeam);
+    // }
 
     // Caso não tenha em cache, buscar o time do usuário atual
     const currentUser = this.authService.currentUser;
@@ -105,11 +107,13 @@ export class MyTeamService {
           return of(team);
         }
 
-        // Extrair os IDs dos jogadores
-        const athleteIds = teamPlayersRows.map((row: any) => row[2]);
+        // Extrair APENAS os IDs do Cartola (coluna id_cartola)
+        const cartolaIds = teamPlayersRows
+          .map((row: any) => row[3]) // id_cartola está na posição 3
+          .filter((id: string) => !!id); // Filtrar IDs nulos ou vazios
 
         // Buscar os detalhes dos jogadores
-        return this.getAthletesDetails(athleteIds).pipe(
+        return this.getAthletesDetails(cartolaIds).pipe(
           switchMap(athletes => {
             // Converter para MyTeamPlayer e adicionar ao time
             team.players = athletes.map(athlete => ({
@@ -127,41 +131,32 @@ export class MyTeamService {
   }
 
   // Método para buscar os detalhes dos jogadores
-  private getAthletesDetails(athleteIds: string[]): Observable<Athlete[]> {
-    if (athleteIds.length === 0) {
+  private getAthletesDetails(cartolaIds: string[]): Observable<Athlete[]> {
+    if (cartolaIds.length === 0) {
       return of([]);
     }
 
-    // Buscar todos os atletas
-    return this.makeAuthorizedRequest<any>('get',
-      `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.ATHLETES_RANGE}`
-    ).pipe(
+    // Buscar diretamente da API do Cartola
+    return this.cartolaApiService.getAllAthletes().pipe(
       map(response => {
-        if (!response.values || response.values.length <= 1) {
+        if (!response || !response.atletas) {
           return [];
         }
-
-        // Mapear os atletas
-        const allAthletes = response.values.slice(1).map((row: any) => ({
-          id: row[0],
-          idCartola: row[1],
-          nome: row[2],
-          apelido: row[3],
-          foto_url: row[4],
-          posicao: row[5],
-          posicaoAbreviacao: row[6],
-          clube: row[7],
-          clubeAbreviacao: row[8],
-          preco: parseFloat(row[9] || '0'),
-          mediaPontos: parseFloat(row[10] || '0'),
-          jogos: parseInt(row[11] || '0', 10),
-          status: row[12],
-          ultimaAtualizacao: row[13],
-          dataCriacao: row[14]
-        }));
-
-        // Filtrar apenas os atletas do time
-        return allAthletes.filter((athlete: Athlete) => athleteIds.includes(athlete.id));
+        
+        // Filtrar os atletas APENAS pelo ID do Cartola
+        const athletesData = Object.values(response.atletas)
+          .filter((athlete: any) => {
+            const atleta_id_str = athlete.atleta_id.toString();
+            return cartolaIds.includes(atleta_id_str);
+          })
+          .map((athlete: any) => this.cartolaApiService.mapAthleteFromApi(athlete));
+        
+        console.log('Dados dos atletas:', athletesData);
+        return athletesData;
+      }),
+      catchError(error => {
+        this.notificationService.error('Não foi possível carregar os dados dos atletas');
+        return of([]);
       })
     );
   }

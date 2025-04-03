@@ -109,6 +109,10 @@ import { TeamLogoService } from '../../../../core/services/team-logo.service';
                   
                   <div *ngIf="team.players.length === 0" class="no-players">
                     <span>Nenhum jogador selecionado</span>
+                    <div class="debug-info" *ngIf="showDebugInfo">
+                      <p>Time ID: {{ team.id }}</p>
+                      <p>Liga ID: {{ team.ligaId }}</p>
+                    </div>
                   </div>
                   
                   <div *ngIf="team.players.length > 0" class="players-list">
@@ -505,6 +509,7 @@ export class TeamListComponent {
   @Input() currentOrderIndex: number = -1;
   @Input() draftStatus: DraftStatus = 'not_started';
   @Input() isLoading: boolean = false;
+  @Input() showDebugInfo: boolean = false;
 
   constructor(private teamLogoService: TeamLogoService) {}
 

@@ -438,8 +438,22 @@ export class MyTeamComponent implements OnInit {
           this.myTeam = team;
           console.log('Time carregado:', this.myTeam);
           if (team?.players) {
-            console.log('Jogadores carregados:', team.players.length);
-            console.log('Exemplo de jogador:', team.players[0]);
+            console.log('[MyTeam] Total de jogadores carregados:', team.players.length);
+            console.log('[MyTeam] Exemplo de dados de jogador:', team.players[0]);
+            
+            // Verificar jogadores lesionados/contundidos como exemplo
+            const injuredPlayers = team.players.filter(p => p.status === 'Contundido');
+            console.log(`[MyTeam] Jogadores contundidos (${injuredPlayers.length}):`, 
+              injuredPlayers.map(p => p.apelido));
+              
+            // Verificar outros status de jogadores
+            const statusCounts: Record<string, number> = {};
+            team.players.forEach(p => {
+              if (p.status) {
+                statusCounts[p.status] = (statusCounts[p.status] || 0) + 1;
+              }
+            });
+            console.log('[MyTeam] Distribuição de status dos jogadores:', statusCounts);
           }
           if (team) {
             this.updateFormationPositions();

@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, map, of, throwError, switchMap, catchError } from 'rxjs';
 import { GoogleAuthService } from '../../../core/services/google-auth.service';
 import { StorageService } from '../../../core/services/storage.service';
+import { CartolaApiService } from '../../../core/services/cartola-api.service';
 import { DraftStatus, DraftTeam, DraftOrderData, DraftConfig, Athlete, PlayerAssignment } from '../models/draft.model';
 
 @Injectable({
@@ -12,14 +13,15 @@ export class DraftService {
   private http = inject(HttpClient);
   private authService = inject(GoogleAuthService);
   private storageService = inject(StorageService);
+  private cartolaApiService = inject(CartolaApiService);
   
   private readonly SHEET_ID = '1n3FjgSy19YCHZhsRA3HR0d92o3yAHhLBjYwEHSYJwjI';
   private readonly TEAMS_RANGE = 'Times!A:I'; // id_time, id_liga, id_usuario, nome, saldo, formacao_atual, pontuacao_total, pontuacao_ultima_rodada, colocacao
   private readonly ATHLETES_RANGE = 'Atletas!A:P'; // id_atleta, id_cartola, nome, apelido, foto_url, posicao, posicao_abreviacao, clube, clube_abreviacao, preco, media_pontos, jogos, status, ultima_atualizacao, data_criacao
   private readonly CONFIG_DRAFT_RANGE = 'ConfigDraft!A:E'; // id_liga, data_hora, duracao_escolha, status, ordem_atual
   private readonly ORDEM_DRAFT_RANGE = 'OrdemDraft!A:D'; // id_liga, rodada, ordem, id_time
-  private readonly ESCOLHAS_DRAFT_RANGE = 'EscolhasDraft!A:G'; // id_escolha, id_liga, rodada, ordem, id_time, id_atleta, timestamp
-  private readonly ELENCOS_TIMES_RANGE = 'ElencosTimes!A:F'; // id_registro, id_time, id_atleta, status_time, valor_compra, data_aquisicao
+  private readonly ESCOLHAS_DRAFT_RANGE = 'EscolhasDraft!A:H'; // id_escolha, id_liga, rodada, ordem, id_time, id_atleta, id_cartola, timestamp
+  private readonly ELENCOS_TIMES_RANGE = 'ElencosTimes!A:G'; // id_registro, id_time, id_atleta, id_cartola, status_time, valor_compra, data_aquisicao
   
   private readonly DRAFT_STATUS_KEY = 'draft_status';
   private readonly DRAFT_TEAMS_KEY = 'draft_teams';
@@ -67,8 +69,8 @@ export class DraftService {
   private ensureEscolhasDraftSheet(): Promise<void> {
     return this.ensureSheetWithHeaders(
       'EscolhasDraft',
-      'EscolhasDraft!A1:G1',
-      ['id_escolha', 'id_liga', 'rodada', 'ordem', 'id_time', 'id_atleta', 'timestamp']
+      'EscolhasDraft!A1:H1',
+      ['id_escolha', 'id_liga', 'rodada', 'ordem', 'id_time', 'id_atleta', 'id_cartola', 'timestamp']
     );
   }
 
@@ -230,41 +232,98 @@ export class DraftService {
   }
 
   private getTeamsPlayers(teams: DraftTeam[]): Observable<DraftTeam[]> {
-    // Buscar todos os jogadores dos times
+    console.log('[DraftService] Iniciando carregamento de jogadores para times');
+    
+    // Buscar primeiro as escolhas do draft da aba EscolhasDraft
     return this.makeAuthorizedRequest<any>('get',
-      `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.ELENCOS_TIMES_RANGE}`
+      `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.ESCOLHAS_DRAFT_RANGE}`
     ).pipe(
-      switchMap(response => {
-        if (!response.values || response.values.length <= 1) {
-          this.storageService.set(this.DRAFT_TEAMS_KEY, teams);
-          return of(teams);
-        }
-
-        // Mapear id_time -> id_atleta
-        const teamPlayerMap = new Map<string, string[]>();
+      switchMap(escolhasResponse => {
+        // Criar um mapa times -> ids_cartola a partir das escolhas
+        const draftTeamCartolaIdMap = new Map<string, string[]>();
         
-        response.values.slice(1).forEach((row: any) => {
-          const teamId = row[1];
-          const athleteId = row[2];
+        // Processar as escolhas do draft (PRIORIDADE)
+        if (escolhasResponse.values && escolhasResponse.values.length > 1) {
+          console.log('[DraftService] Encontradas escolhas de draft:', escolhasResponse.values.length - 1);
           
-          if (!teamPlayerMap.has(teamId)) {
-            teamPlayerMap.set(teamId, []);
-          }
-          
-          teamPlayerMap.get(teamId)?.push(athleteId);
-        });
+          escolhasResponse.values.slice(1).forEach((row: any) => {
+            const teamId = row[4]; // id_time está na posição 4
+            const cartolaId = row[6]; // id_cartola está na posição 6
+            
+            if (teamId && cartolaId) {
+              // Guardar id_cartola
+              if (!draftTeamCartolaIdMap.has(teamId)) {
+                draftTeamCartolaIdMap.set(teamId, []);
+              }
+              
+              if (!draftTeamCartolaIdMap.get(teamId)?.includes(cartolaId)) {
+                draftTeamCartolaIdMap.get(teamId)?.push(cartolaId);
+              }
+            }
+          });
+        }
+        
+        // Em seguida, buscar as relações na aba ElencosTimes como backup
+        return this.makeAuthorizedRequest<any>('get',
+          `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.ELENCOS_TIMES_RANGE}`
+        ).pipe(
+          switchMap(elencosResponse => {
+            // Processar jogadores do elenco como backup
+            if (elencosResponse.values && elencosResponse.values.length > 1) {
+              console.log('[DraftService] Encontrados registros de elencos:', elencosResponse.values.length - 1);
+              
+              elencosResponse.values.slice(1).forEach((row: any) => {
+                const teamId = row[1]; // id_time está na posição 1
+                const cartolaId = row[3]; // id_cartola está na posição 3
+                
+                if (teamId && cartolaId) {
+                  // Guardar id_cartola
+                  if (!draftTeamCartolaIdMap.has(teamId)) {
+                    draftTeamCartolaIdMap.set(teamId, []);
+                  }
+                  
+                  if (!draftTeamCartolaIdMap.get(teamId)?.includes(cartolaId)) {
+                    draftTeamCartolaIdMap.get(teamId)?.push(cartolaId);
+                  }
+                }
+              });
+            }
+            
+            // Se nenhum jogador foi encontrado, retornar times vazios
+            if (draftTeamCartolaIdMap.size === 0) {
+              console.log('[DraftService] Nenhum jogador encontrado para os times');
+              this.storageService.set(this.DRAFT_TEAMS_KEY, teams);
+              return of(teams);
+            }
+            
+            // Buscar detalhes dos atletas da API do Cartola
+            return this.getAllAthletes().pipe(
+              map(athletes => {
+                console.log(`[DraftService] ${athletes.length} atletas carregados da API do Cartola`);
+                
+                // Associar cada atleta ao seu time
+                teams.forEach((team: DraftTeam) => {
+                  const cartolaIds = draftTeamCartolaIdMap.get(team.id) || [];
+                  
+                  // Limpar array de jogadores para o time
+                  team.players = [];
+                  
+                  // Buscar cada atleta APENAS pelo ID numérico do Cartola
+                  cartolaIds.forEach(cartolaId => {
+                    const matchedAthlete = athletes.find(a => a.idCartola === cartolaId);
+                    if (matchedAthlete && !team.players.some(p => p.id === matchedAthlete.id)) {
+                      team.players.push(matchedAthlete);
+                    }
+                  });
+                  
+                  console.log(`[DraftService] Time ${team.name}: ${team.players.length} jogadores carregados`);
+                });
 
-        // Agora buscar detalhes de todos os atletas
-        return this.getAllAthletes().pipe(
-          map(athletes => {
-            // Associar cada atleta ao seu time
-            teams.forEach(team => {
-              const athleteIds = teamPlayerMap.get(team.id) || [];
-              team.players = athletes.filter(athlete => athleteIds.includes(athlete.id));
-            });
-
-            this.storageService.set(this.DRAFT_TEAMS_KEY, teams);
-            return teams;
+                // Salvar em cache para futuras consultas
+                this.storageService.set(this.DRAFT_TEAMS_KEY, teams);
+                return teams;
+              })
+            );
           })
         );
       })
@@ -273,102 +332,22 @@ export class DraftService {
 
   // Obter todos os atletas com renovação automática do token
   getAllAthletes(): Observable<Athlete[]> {
-    return this.makeAuthorizedRequest<any>('get', 
-      `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.ATHLETES_RANGE}`
-    ).pipe(
+    // Obter diretamente da API do Cartola
+    return this.cartolaApiService.getAllAthletes().pipe(
       map(response => {
-        if (!response.values || response.values.length <= 1) {
-          console.warn('Nenhum atleta encontrado na planilha');
+        if (!response || !response.atletas) {
           return [];
         }
-
-        // Log dos cabeçalhos da tabela de atletas
-        console.log('Cabeçalhos da tabela de atletas:', response.values[0]);
-
-        // Mapeamento dos cabeçalhos conhecidos
-        // Ordem esperada: id_atleta, id_cartola, nome, apelido, foto_url, posicao, posicao_abreviacao, 
-        // clube, clube_abreviacao, preco, media_pontos, jogos, status, ultima_atualizacao, data_criacao
-        const headerMapping: {[key: string]: number} = {};
-        response.values[0].forEach((header: string, index: number) => {
-          // Garantir que o cabeçalho está em minúsculas para uma comparação normalizada
-          const normalizedHeader = header.toString().toLowerCase().trim();
-          headerMapping[normalizedHeader] = index;
-          
-          // Adicionar mapeamentos alternativos para campos com variações
-          if (normalizedHeader === 'clube') headerMapping['clube'] = index;
-          if (normalizedHeader === 'clube_abreviacao') headerMapping['clube_abreviacao'] = index;
-          if (normalizedHeader === 'preco') headerMapping['preco'] = index;
+        
+        // Converter o objeto de atletas para um array
+        const athletes = Object.values(response.atletas).map((athlete: any) => {
+          return this.cartolaApiService.mapAthleteFromApi(athlete);
         });
-        
-        console.log('Mapeamento dos cabeçalhos:', headerMapping);
-        
-        // Depuração extra para campos problemáticos
-        console.log('Índice da coluna "clube":', headerMapping['clube']);
-        console.log('Índice da coluna "preco":', headerMapping['preco']);
 
-        const athletes = response.values.slice(1).map((row: any, index: number) => {
-          try {
-            // Não rejeitamos atletas se alguns dados faltarem - usamos valores default
-            // e apenas logamos um aviso
-            if (!row[headerMapping['id_atleta']] || !row[headerMapping['nome']]) {
-              console.warn(`Atleta na linha ${index + 2} com ID ou nome faltando:`, row);
-              return null;
-            }
-
-            // Depurar primeiro atleta com valores brutos
-            if (index === 0) {
-              console.log('Valores brutos do primeiro atleta:');
-              console.log('id_atleta:', row[headerMapping['id_atleta']]);
-              console.log('nome:', row[headerMapping['nome']]);
-              console.log('posicao (índice ' + headerMapping['posicao'] + '):', row[headerMapping['posicao']]);
-              console.log('posicao_abreviacao (índice ' + headerMapping['posicao_abreviacao'] + '):', row[headerMapping['posicao_abreviacao']]);
-              console.log('clube (índice ' + headerMapping['clube'] + '):', row[headerMapping['clube']]);
-              console.log('preco (índice ' + headerMapping['preco'] + '):', row[headerMapping['preco']]);
-            }
-
-            // Verificar se os campos críticos estão presentes
-            const clubeIndex = headerMapping['clube'];
-            const precoIndex = headerMapping['preco'];
-            
-            const clube = clubeIndex !== undefined && row[clubeIndex] ? row[clubeIndex] : 'Sem Clube';
-            const preco = precoIndex !== undefined && row[precoIndex] ? parseFloat(row[precoIndex]) : 0;
-
-            const athlete = {
-              id: row[headerMapping['id_atleta']] || `temp-${index}`,
-              idCartola: row[headerMapping['id_cartola']] || '',
-              nome: row[headerMapping['nome']] || 'Nome Desconhecido',
-              apelido: row[headerMapping['apelido']] || row[headerMapping['nome']] || 'Sem Apelido',
-              posicao: row[headerMapping['posicao']] || 'SEM',
-              posicaoAbreviacao: row[headerMapping['posicao_abreviacao']] || row[headerMapping['posicao']] || 'SEM',
-              clube: clube,
-              clubeAbreviacao: row[headerMapping['clube_abreviacao']] || '',
-              preco: preco,
-              mediaPontos: parseFloat(row[headerMapping['media_pontos']] || '0'),
-              jogos: parseInt(row[headerMapping['jogos']] || '0', 10),
-              status: row[headerMapping['status']] || 'Disponível',
-              foto_url: row[headerMapping['foto_url']] || '',
-              ultimaAtualizacao: row[headerMapping['ultima_atualizacao']] || '',
-              dataCriacao: row[headerMapping['data_criacao']] || ''
-            } as Athlete;
-
-            return athlete;
-          } catch (e) {
-            console.error(`Erro ao processar atleta na linha ${index + 2}:`, e, row);
-            return null;
-          }
-        }).filter((athlete: Athlete | null): athlete is Athlete => athlete !== null);
-
-        // Log detalhado do primeiro atleta
-        if (athletes.length > 0) {
-          console.log('Detalhes completos do primeiro atleta:', JSON.stringify(athletes[0]));
-        }
-
-        console.log(`Total de atletas carregados: ${athletes.length}`);
         return athletes;
       }),
       catchError(error => {
-        console.error('Erro ao carregar atletas:', error);
-        return throwError(() => new Error(`Erro ao carregar atletas da planilha: ${error.message || error.statusText}`));
+        return throwError(() => new Error(`Erro ao carregar atletas da API do Cartola: ${error.message || error.statusText}`));
       })
     );
   }
@@ -645,6 +624,11 @@ export class DraftService {
     const now = new Date().toISOString();
     const ligaId = '1'; // Default liga
 
+    console.log(`[DraftService] Atribuindo jogador com ID ${athleteId} ao time ${teamId}`);
+
+    // O athleteId recebido já deve ser o ID do Cartola (numérico)
+    const cartolaId: string = athleteId;
+
     // Primeiro adicionar a escolha na planilha EscolhasDraft
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.ESCOLHAS_DRAFT_RANGE}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
     
@@ -656,7 +640,8 @@ export class DraftService {
           round.toString(),      // rodada
           orderIndex.toString(), // ordem
           teamId,                // id_time
-          athleteId,             // id_atleta
+          athleteId,             // id_atleta (mantido por compatibilidade, mesmo valor do cartolaId)
+          cartolaId,             // id_cartola (ID numérico do Cartola - principal)
           now                    // timestamp
         ]
       ]
@@ -665,14 +650,16 @@ export class DraftService {
     return this.makeAuthorizedRequest<any>('post', url, body).pipe(
       switchMap(() => {
         // Agora adicionar o atleta ao elenco do time na planilha ElencosTimes
-        return this.addAthleteToTeamRoster(teamId, athleteId);
+        return this.addAthleteToTeamRoster(teamId, cartolaId);
       })
     );
   }
 
-  private addAthleteToTeamRoster(teamId: string, athleteId: string): Observable<boolean> {
+  private addAthleteToTeamRoster(teamId: string, cartolaId: string): Observable<boolean> {
     const registroId = this.generateUniqueId();
     const now = new Date().toISOString();
+
+    console.log(`[DraftService] Adicionando jogador com ID do Cartola ${cartolaId} ao elenco do time ${teamId}`);
 
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.ELENCOS_TIMES_RANGE}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
     
@@ -681,7 +668,8 @@ export class DraftService {
         [
           registroId,     // id_registro
           teamId,         // id_time
-          athleteId,      // id_atleta
+          cartolaId,      // id_atleta (mantido por compatibilidade, mesmo valor do id_cartola)
+          cartolaId,      // id_cartola (ID numérico do Cartola - principal)
           'Ativo',        // status_time
           '0',            // valor_compra (0 durante o draft)
           now             // data_aquisicao
@@ -696,6 +684,14 @@ export class DraftService {
         return true;
       })
     );
+  }
+
+  // Método para encontrar um atleta pelo ID do Cartola (numérico)
+  private findAthleteByCartolaId(athletes: Athlete[], cartolaId: string): Athlete | undefined {
+    if (!cartolaId) return undefined;
+    
+    // Buscar diretamente pelo ID numérico do Cartola
+    return athletes.find(a => a.idCartola === cartolaId);
   }
 
   // Avançar para próxima escolha
@@ -876,12 +872,15 @@ export class DraftService {
 
   // Obter times para o Draft finalizado usando a aba EscolhasDraft como histórico
   getDraftTeamHistory(draftId: string): Observable<DraftTeam[]> {
+    console.log(`[DraftService] Obtendo histórico de times para o draft ID: ${draftId}`);
+    
     // Primeiro obtemos as informações básicas dos times
     return this.makeAuthorizedRequest<any>('get', 
       `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.TEAMS_RANGE}`
     ).pipe(
       switchMap(response => {
         if (!response.values || response.values.length <= 1) {
+          console.log('[DraftService] Nenhum time encontrado na planilha');
           return of([]);
         }
 
@@ -900,40 +899,62 @@ export class DraftService {
           } as DraftTeam;
         });
 
+        console.log(`[DraftService] ${teams.length} times carregados da planilha`);
+
         // Buscar as escolhas do draft registradas na aba EscolhasDraft
         return this.makeAuthorizedRequest<any>('get',
           `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.ESCOLHAS_DRAFT_RANGE}`
         ).pipe(
           switchMap(draftChoices => {
-            if (!draftChoices.values || draftChoices.values.length <= 1) {
-              return of(teams); // Sem escolhas registradas, retornar times vazios
-            }
-
-            // Mapear id_time -> id_atleta das escolhas do draft
-            const teamPlayerMap = new Map<string, string[]>();
+            // Mapear id_time -> id_cartola das escolhas do draft
+            const teamCartolaIdMap = new Map<string, string[]>();
             
             // Filtrar escolhas pela liga especificada (draftId)
-            const choices = draftChoices.values.slice(1)
-              .filter((row: any) => row[1] === draftId);
-            
-            choices.forEach((row: any) => {
-              const teamId = row[4]; // id_time está na posição 4
-              const athleteId = row[5]; // id_atleta está na posição 5
+            if (draftChoices.values && draftChoices.values.length > 1) {
+              const choices = draftChoices.values.slice(1)
+                .filter((row: any) => row[1] === draftId || !draftId);
               
-              if (!teamPlayerMap.has(teamId)) {
-                teamPlayerMap.set(teamId, []);
-              }
+              console.log(`[DraftService] ${choices.length} escolhas de draft encontradas para a liga ${draftId || 'todas'}`);
               
-              teamPlayerMap.get(teamId)?.push(athleteId);
-            });
+              choices.forEach((row: any) => {
+                const teamId = row[4]; // id_time está na posição 4
+                const cartolaId = row[6]; // id_cartola está na posição 6
+                
+                if (teamId && cartolaId) {
+                  if (!teamCartolaIdMap.has(teamId)) {
+                    teamCartolaIdMap.set(teamId, []);
+                  }
+                  
+                  if (!teamCartolaIdMap.get(teamId)?.includes(cartolaId)) {
+                    teamCartolaIdMap.get(teamId)?.push(cartolaId);
+                  }
+                }
+              });
+            }
 
-            // Agora buscar detalhes dos atletas escolhidos
+            // Agora buscar detalhes dos atletas escolhidos da API do Cartola
             return this.getAllAthletes().pipe(
               map(athletes => {
+                console.log(`[DraftService] ${athletes.length} atletas carregados da API do Cartola`);
+                
                 // Associar cada atleta ao seu time conforme as escolhas do draft
                 teams.forEach((team: DraftTeam) => {
-                  const athleteIds = teamPlayerMap.get(team.id) || [];
-                  team.players = athletes.filter(athlete => athleteIds.includes(athlete.id));
+                  const cartolaIds = teamCartolaIdMap.get(team.id) || [];
+                  
+                  // Limpar array de jogadores para o time
+                  team.players = [];
+                  
+                  // Buscar jogadores APENAS pelo ID do Cartola
+                  cartolaIds.forEach(cartolaId => {
+                    if (cartolaId) {
+                      const matchedAthlete = this.findAthleteByCartolaId(athletes, cartolaId);
+                      if (matchedAthlete && !team.players.some(p => p.id === matchedAthlete.id)) {
+                        team.players.push(matchedAthlete);
+                      }
+                    }
+                  });
+                  
+                  console.log(`[DraftService] Time ${team.name}: ${team.players.length} jogadores carregados`);
                 });
                 
                 return teams;

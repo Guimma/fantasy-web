@@ -34,6 +34,8 @@ export interface DraftConfig {
 export interface Athlete {
   id: string;
   idCartola: string;
+  slug: string;          // Campo para o ID no formato ATL_PPP13J
+  slugVariants?: string[]; // Diferentes variantes de slug para comparação
   nome: string;
   apelido: string;
   foto_url?: string;
