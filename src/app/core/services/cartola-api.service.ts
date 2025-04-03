@@ -1,23 +1,62 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of, map, catchError, shareReplay } from 'rxjs';
+import { Observable, of, map, catchError, shareReplay, throwError } from 'rxjs';
 import { Athlete } from '../../features/draft/models/draft.model';
+import { CorsProxyService } from './cors-proxy.service';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class CartolaApiService {
   private http = inject(HttpClient);
+  private corsProxy = inject(CorsProxyService);
   private readonly BASE_URL = 'https://api.cartola.globo.com';
   private athletesCache: { data: any; timestamp: number } | null = null;
   private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutos em milissegundos
 
   constructor() {}
 
+  /**
+   * Helper method to handle API requests with or without proxy based on environment
+   * Uses direct call in development, proxy in production
+   */
+  private apiGet<T>(endpoint: string): Observable<T> {
+    const url = `${this.BASE_URL}${endpoint}`;
+    
+    // In development, we can call the API directly
+    // In production, we need to use the proxy
+    if (!environment.production) {
+      console.log(`[CartolaAPI] Chamada direta em ambiente de desenvolvimento: ${url}`);
+      return this.http.get<T>(url).pipe(
+        catchError(error => {
+          console.error(`[CartolaAPI] Erro na chamada direta: ${error.message}`);
+          // If CORS error in development, try using proxy as fallback
+          if (error.status === 0) {
+            console.log(`[CartolaAPI] Tentando via proxy mesmo em desenvolvimento...`);
+            return this.corsProxy.get<T>(url);
+          }
+          return throwError(() => error);
+        })
+      );
+    } else {
+      console.log(`[CartolaAPI] Chamada via proxy em ambiente de produção: ${url}`);
+      return this.corsProxy.get<T>(url).pipe(
+        catchError(proxyError => {
+          console.error(`[CartolaAPI] Erro na chamada via proxy: ${proxyError.message}`);
+          // If the proxy fails, try rotating to the next one
+          this.corsProxy.rotateProxy();
+          console.log(`[CartolaAPI] Tentando com outro proxy...`);
+          return this.corsProxy.get<T>(url);
+        })
+      );
+    }
+  }
+
   // Obter o status atual do mercado
   getMarketStatus(): Observable<any> {
     console.log('[CartolaAPI] Obtendo status do mercado');
-    return this.http.get<any>(`${this.BASE_URL}/mercado/status`).pipe(
+    return this.apiGet<any>('/mercado/status').pipe(
       map(response => {
         console.log('[CartolaAPI] Status do mercado obtido:', response);
         return response;
@@ -33,7 +72,7 @@ export class CartolaApiService {
   getCurrentRound(): Observable<any> {
     console.log('[CartolaAPI] Obtendo rodada atual');
     
-    return this.http.get<any>(`${this.BASE_URL}/rodadas`).pipe(
+    return this.apiGet<any>('/rodadas').pipe(
       map(rounds => {
         console.log('[CartolaAPI] Rodadas obtidas:', rounds);
         if (Array.isArray(rounds)) {
@@ -106,7 +145,7 @@ export class CartolaApiService {
     }
 
     console.log('[CartolaAPI] Obtendo atletas do mercado');
-    return this.http.get<any>(`${this.BASE_URL}/atletas/mercado`).pipe(
+    return this.apiGet<any>('/atletas/mercado').pipe(
       map(response => {
         // Armazenar no cache
         this.athletesCache = {
@@ -138,7 +177,7 @@ export class CartolaApiService {
   // Obter atletas pontuados em uma rodada específica
   getAthletesScores(roundId: number): Observable<any> {
     console.log(`[CartolaAPI] Obtendo pontuações da rodada ${roundId}`);
-    return this.http.get<any>(`${this.BASE_URL}/atletas/pontuados/${roundId}`).pipe(
+    return this.apiGet<any>(`/atletas/pontuados/${roundId}`).pipe(
       map(response => {
         if (response && response.atletas) {
           console.log(`[CartolaAPI] ${Object.keys(response.atletas).length} atletas pontuados na rodada ${roundId}`);
