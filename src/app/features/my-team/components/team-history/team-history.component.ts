@@ -17,7 +17,8 @@ import { TeamHistoryService } from '../../services/team-history.service';
 import { PontuacaoService } from '../../services/pontuacao.service';
 import { MyTeamService } from '../../services/my-team.service';
 import { TeamRoundHistory } from '../../models/team-history.model';
-import { Rodada } from '../../models/pontuacao.model';
+import { Rodada, DetalhePontuacaoAtleta } from '../../models/pontuacao.model';
+import { Athlete } from '../../../draft/models/draft.model';
 
 @Component({
   selector: 'app-team-history',
@@ -73,34 +74,68 @@ import { Rodada } from '../../models/pontuacao.model';
           <h3>Time na Rodada {{ historicoTime.rodadaId }}</h3>
           <p class="history-date">Salvo em: {{ historicoTime.dataRegistro | date:'dd/MM/yyyy HH:mm' }}</p>
           
-          <table mat-table [dataSource]="historicoTime.jogadores" class="mat-elevation-z2">
+          <div *ngIf="!carregandoPontuacao && detalhePontuacao && detalhePontuacao.length > 0">
+            <h4>Pontuação: {{ calcularPontuacaoTotal() | number:'1.1-1' }} pts</h4>
+            <p class="formation-info" *ngIf="historicoTime.formacao">Formação: {{ historicoTime.formacao }}</p>
+          </div>
+          
+          <div *ngIf="carregandoPontuacao" class="loading-container">
+            <mat-spinner diameter="30"></mat-spinner>
+            <p>Carregando pontuações...</p>
+          </div>
+          
+          <table mat-table [dataSource]="tableDataSource" class="mat-elevation-z2">
             <ng-container matColumnDef="posicao">
               <th mat-header-cell *matHeaderCellDef>Posição</th>
-              <td mat-cell *matCellDef="let jogador">{{ jogador.posicaoAbreviacao }}</td>
+              <td mat-cell *matCellDef="let jogador">
+                {{ jogador.atleta ? jogador.atleta.posicaoAbreviacao : jogador.posicaoAbreviacao }}
+              </td>
             </ng-container>
             
             <ng-container matColumnDef="nome">
               <th mat-header-cell *matHeaderCellDef>Nome</th>
-              <td mat-cell *matCellDef="let jogador">{{ jogador.apelido }}</td>
+              <td mat-cell *matCellDef="let jogador" [class.not-considered]="!isConsiderado(jogador)">
+                {{ jogador.atleta ? jogador.atleta.apelido : jogador.apelido }}
+              </td>
             </ng-container>
             
             <ng-container matColumnDef="clube">
               <th mat-header-cell *matHeaderCellDef>Clube</th>
-              <td mat-cell *matCellDef="let jogador">{{ jogador.clube }}</td>
+              <td mat-cell *matCellDef="let jogador">
+                {{ jogador.atleta ? jogador.atleta.clube : jogador.clube }}
+              </td>
+            </ng-container>
+            
+            <ng-container matColumnDef="pontuacao">
+              <th mat-header-cell *matHeaderCellDef>Pontuação</th>
+              <td mat-cell *matCellDef="let jogador" [class.not-considered]="!isConsiderado(jogador)">
+                <span *ngIf="jogador.pontuacao !== undefined" 
+                      [class.negative]="jogador.pontuacao < 0"
+                      [class.zero]="jogador.pontuacao === 0"
+                      class="points">
+                  {{ jogador.pontuacao | number:'1.1-1' }}
+                </span>
+                <span *ngIf="jogador.pontuacao === undefined">-</span>
+              </td>
             </ng-container>
             
             <ng-container matColumnDef="status">
               <th mat-header-cell *matHeaderCellDef>Status</th>
-              <td mat-cell *matCellDef="let jogador">{{ jogador.status }}</td>
+              <td mat-cell *matCellDef="let jogador">
+                <span *ngIf="isConsiderado(jogador)" class="status-badge considered">
+                  <mat-icon fontIcon="check"></mat-icon> Considerado
+                </span>
+                <span *ngIf="isJogou(jogador) && !isConsiderado(jogador)" class="status-badge not-considered">
+                  <mat-icon fontIcon="close"></mat-icon> Fora da formação
+                </span>
+                <span *ngIf="!isJogou(jogador)" class="status-badge not-played">
+                  <mat-icon fontIcon="dangerous"></mat-icon> Não jogou
+                </span>
+              </td>
             </ng-container>
             
-            <ng-container matColumnDef="preco">
-              <th mat-header-cell *matHeaderCellDef>Preço</th>
-              <td mat-cell *matCellDef="let jogador">{{ jogador.preco | number:'1.2-2' }}</td>
-            </ng-container>
-            
-            <tr mat-header-row *matHeaderRowDef="colunas"></tr>
-            <tr mat-row *matRowDef="let row; columns: colunas;"></tr>
+            <tr mat-header-row *matHeaderRowDef="colunasPontuacao"></tr>
+            <tr mat-row *matRowDef="let row; columns: colunasPontuacao;"></tr>
           </table>
         </div>
       </mat-card-content>
@@ -110,7 +145,7 @@ import { Rodada } from '../../models/pontuacao.model';
       </mat-card-actions>
     </mat-card>
   `,
-  styles: [`
+  styles: `
     .round-selector {
       display: flex;
       align-items: center;
@@ -151,10 +186,72 @@ import { Rodada } from '../../models/pontuacao.model';
       margin-bottom: 16px;
     }
     
+    .formation-info {
+      margin-top: -8px;
+      margin-bottom: 16px;
+      color: #444;
+      font-weight: 500;
+    }
+    
     table {
       width: 100%;
     }
-  `]
+    
+    .not-considered {
+      text-decoration: line-through;
+      color: #888;
+    }
+    
+    .points {
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 12px;
+      background-color: rgba(76, 175, 80, 0.15);
+      color: #2e7d32;
+    }
+    
+    .points.negative {
+      background-color: rgba(244, 67, 54, 0.15);
+      color: #d32f2f;
+    }
+    
+    .points.zero {
+      background-color: rgba(158, 158, 158, 0.15);
+      color: #616161;
+    }
+    
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .status-badge mat-icon {
+      font-size: 14px;
+      height: 14px;
+      width: 14px;
+      line-height: 14px;
+    }
+    
+    .status-badge.considered {
+      background-color: rgba(76, 175, 80, 0.15);
+      color: #2e7d32;
+    }
+    
+    .status-badge.not-considered {
+      background-color: rgba(255, 152, 0, 0.15);
+      color: #ef6c00;
+    }
+    
+    .status-badge.not-played {
+      background-color: rgba(158, 158, 158, 0.15);
+      color: #616161;
+    }
+  `
 })
 export class TeamHistoryComponent implements OnInit {
   private teamHistoryService = inject(TeamHistoryService);
@@ -167,19 +264,39 @@ export class TeamHistoryComponent implements OnInit {
   timeId: string | null = null;
   
   historicoTime: TeamRoundHistory | null = null;
+  detalhePontuacao: DetalhePontuacaoAtleta[] | null = null;
   carregando = false;
+  carregandoPontuacao = false;
   
   rodadaControl = new FormControl<number | null>(null);
   colunas = ['posicao', 'nome', 'clube', 'status', 'preco'];
+  colunasPontuacao = ['posicao', 'nome', 'clube', 'pontuacao', 'status'];
+  
+  get tableDataSource(): Array<DetalhePontuacaoAtleta | Athlete> {
+    if (this.detalhePontuacao && this.detalhePontuacao.length > 0) {
+      return this.detalhePontuacao;
+    }
+    
+    if (this.historicoTime && this.historicoTime.jogadores && this.historicoTime.jogadores.length > 0) {
+      return this.historicoTime.jogadores;
+    }
+    
+    return [];
+  }
   
   ngOnInit(): void {
     // Carregar rodadas disponíveis
     this.carregarRodadas();
     
     // Carregar time do usuário
-    this.myTeamService.getMyTeam().subscribe(team => {
-      if (team) {
-        this.timeId = team.id;
+    this.myTeamService.getMyTeam().subscribe({
+      next: (team) => {
+        if (team) {
+          this.timeId = team.id;
+        }
+      },
+      error: (err) => {
+        console.error('Erro ao carregar time:', err);
       }
     });
   }
@@ -228,43 +345,72 @@ export class TeamHistoryComponent implements OnInit {
     
     this.carregando = true;
     this.historicoTime = null;
+    this.detalhePontuacao = null;
     
     this.teamHistoryService.getTimeHistoricoRodada(this.timeId, this.rodadaSelecionada)
-      .subscribe(historico => {
-        this.historicoTime = historico;
-        this.carregando = false;
+      .subscribe({
+        next: (historico) => {
+          this.historicoTime = historico;
+          this.carregando = false;
+          
+          if (historico && this.rodadaSelecionada && this.rodadaSelecionada > 0) {
+            this.carregarDetalhesRodada();
+          }
+        },
+        error: (err) => {
+          console.error('Erro ao carregar histórico:', err);
+          this.carregando = false;
+          this.historicoTime = null;
+        }
       });
   }
   
-  exportarCSV(): void {
-    if (!this.historicoTime) {
+  carregarDetalhesRodada(): void {
+    if (!this.timeId || !this.rodadaSelecionada) {
       return;
     }
     
-    // Criar conteúdo CSV
-    const headers = ['ID', 'Nome', 'Posição', 'Clube', 'Status', 'Preço'];
+    this.carregandoPontuacao = true;
     
-    const csvContent = [
-      headers.join(','),
-      ...this.historicoTime.jogadores.map(jogador => [
-        jogador.idCartola,
-        `"${jogador.apelido}"`,
-        jogador.posicao,
-        `"${jogador.clube}"`,
-        jogador.status,
-        jogador.preco
-      ].join(','))
-    ].join('\n');
+    this.pontuacaoService.getDetalhesPontuacaoTime(this.timeId, this.rodadaSelecionada)
+      .subscribe({
+        next: (detalhes) => {
+          this.detalhePontuacao = detalhes;
+          this.carregandoPontuacao = false;
+          console.log('Detalhes pontuação carregados:', detalhes);
+        },
+        error: (err) => {
+          console.error('Erro ao carregar detalhes da pontuação:', err);
+          this.carregandoPontuacao = false;
+        }
+      });
+  }
+  
+  calcularPontuacaoTotal(): number {
+    if (!this.detalhePontuacao || this.detalhePontuacao.length === 0) {
+      return 0;
+    }
     
-    // Criar o blob e download
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    
-    link.setAttribute('href', url);
-    link.setAttribute('download', `time_rodada_${this.historicoTime.rodadaId}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    return this.detalhePontuacao
+      .filter(d => d.consideradoNaCalculacao === true)
+      .reduce((total, detalhe) => total + (detalhe.pontuacao || 0), 0);
+  }
+  
+  isConsiderado(jogador: DetalhePontuacaoAtleta | Athlete): boolean {
+    // Para jogadores do tipo DetalhePontuacaoAtleta
+    if ('consideradoNaCalculacao' in jogador) {
+      return jogador.consideradoNaCalculacao === true;
+    }
+    // Para jogadores sem informação de consideração, assumir true
+    return true;
+  }
+  
+  isJogou(jogador: DetalhePontuacaoAtleta | Athlete): boolean {
+    // Para jogadores do tipo DetalhePontuacaoAtleta
+    if ('entrou_em_campo' in jogador) {
+      return jogador.entrou_em_campo === true;
+    }
+    // Para jogadores do tipo Athlete sem informações adicionais
+    return false;
   }
 } 

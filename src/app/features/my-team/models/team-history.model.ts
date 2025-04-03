@@ -22,5 +22,16 @@ export interface TeamRoundHistory {
   timeId: string;
   rodadaId: number;
   dataRegistro: string;
+  formacao: string; // ID da formação utilizada na rodada (ex: '4-3-3', '4-4-2', etc.)
   jogadores: Athlete[];
+}
+
+/**
+ * Interface que representa uma formação histórica de um time para uma rodada específica
+ */
+export interface FormacaoHistorica {
+  registroId: string;
+  timeId: string;
+  rodadaId: number;
+  idFormacao: string;
 } 

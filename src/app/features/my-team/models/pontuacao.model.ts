@@ -29,6 +29,8 @@ export interface DetalhePontuacaoAtleta {
   atleta: Athlete;
   pontuacao: number;
   scout: Record<string, number>;
+  entrou_em_campo?: boolean; // Indica se o jogador entrou em campo na partida
+  consideradoNaCalculacao?: boolean; // Indica se o jogador foi considerado no cálculo da pontuação total
 }
 
 export interface PontuacaoRodada {

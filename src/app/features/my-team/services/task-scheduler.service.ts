@@ -235,9 +235,9 @@ export class TaskSchedulerService implements OnDestroy {
           switchMap(times => {
             if (!times || times.length === 0) {
               console.warn('[TaskScheduler] Nenhum time encontrado para calcular pontuações.');
-              return of(false);
-            }
-            
+          return of(false);
+        }
+        
             console.log(`[TaskScheduler] Encontrados ${times.length} times para verificar pontuações históricas.`);
             
             // Para cada time, verificar histórico e pontuações de rodadas anteriores
@@ -321,7 +321,7 @@ export class TaskSchedulerService implements OnDestroy {
       })
     );
   }
-  
+
   /**
    * Função simplificada para verificar pontuações e históricos
    * Combina as verificações de pontuações e histórico de times em uma única chamada
@@ -389,18 +389,18 @@ export class TaskSchedulerService implements OnDestroy {
                       
                       // Calcular pontuação usando histórico da rodada
                       return this.pontuacaoService.calcularPontuacaoTime(time, idRodada).pipe(
-                        switchMap(pontuacao => {
+                  switchMap(pontuacao => {
                           console.log(`[TaskScheduler] Pontuação calculada para o time ${time.id} na rodada ${idRodada}: ${pontuacao.pontuacao_total}`);
                           
-                          // Salvar a pontuação calculada
+                    // Salvar a pontuação calculada
                           return this.pontuacaoService.salvarPontuacaoRodada(pontuacao);
-                        })
-                      );
-                    }),
-                    catchError(error => {
+                      })
+                    );
+                  }),
+                  catchError(error => {
                       console.error(`[TaskScheduler] Erro ao calcular/salvar pontuação do time ${time.id} para rodada ${idRodada}:`, error);
-                      return of(false);
-                    })
+                    return of(false);
+                  })
                   )
                 );
               }
@@ -430,7 +430,7 @@ export class TaskSchedulerService implements OnDestroy {
       })
     );
   }
-  
+
   /**
    * Calcula pontuações parciais durante a rodada
    */

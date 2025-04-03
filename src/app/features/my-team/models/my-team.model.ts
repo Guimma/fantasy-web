@@ -42,6 +42,15 @@ export interface FormationPosition {
   y: number; // Posição Y no campo (0-100)
 }
 
+export interface Time {
+  time_id: string;
+  nome: string;
+  nome_cartola?: string;
+  slug?: string;
+  foto_perfil?: string;
+  assinante?: boolean;
+}
+
 export const FORMATIONS: Formation[] = [
   {
     id: 'F001',
