@@ -10,15 +10,25 @@ export interface Rodada {
 
 export interface AtletaPontuado {
   atleta_id: string;
-  id: string;
+  cartola_id: string;  // ID do atleta na API do Cartola
+  nome: string;
+  apelido: string;
+  foto_url?: string;
+  posicao: string;
+  posicaoAbreviacao: string;
+  clube: string;
+  clubeAbreviacao: string;
   pontuacao: number;
   scout: Record<string, number>;
-  nome?: string;
-  apelido?: string;
-  posicao?: string;
-  posicao_abreviacao?: string;
-  clube?: string;
-  clube_abreviacao?: string;
+  entrou_em_campo?: boolean;
+  consideradoNaCalculacao?: boolean;
+}
+
+export interface DetalhePontuacaoAtleta {
+  rodada_id?: number; // Opcional para compatibilidade com o retorno existente
+  atleta: Athlete;
+  pontuacao: number;
+  scout: Record<string, number>;
 }
 
 export interface PontuacaoRodada {
@@ -27,10 +37,4 @@ export interface PontuacaoRodada {
   pontuacao_total: number;
   data_calculo: Date;
   atletas_pontuados: AtletaPontuado[];
-}
-
-export interface DetalhePontuacaoAtleta {
-  atleta: Athlete;
-  pontuacao: number;
-  scout: Record<string, number>;
 } 

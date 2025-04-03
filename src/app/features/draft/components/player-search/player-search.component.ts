@@ -434,20 +434,6 @@ export class PlayerSearchComponent implements OnChanges, OnInit {
       this.filteredPlayers = [...this.availablePlayers];
       this.extractUniqueClubs();
       this.applyFilters();
-      
-      // Logar o primeiro jogador para verificação de dados
-      if (this.availablePlayers.length > 0) {
-        console.log('Exemplo de objeto de jogador:', this.availablePlayers[0]);
-        console.log('Preço do jogador mais caro:', this.availablePlayers[0].preco);
-        
-        // Contar jogadores por posição
-        const positionCount: Record<string, number> = {};
-        this.availablePlayers.forEach(player => {
-          const pos = player.posicao || 'Desconhecida';
-          positionCount[pos] = (positionCount[pos] || 0) + 1;
-        });
-        console.log('Contagem de jogadores por posição:', positionCount);
-      }
     }
   }
 
@@ -455,16 +441,6 @@ export class PlayerSearchComponent implements OnChanges, OnInit {
     this.searchControl.valueChanges.subscribe(() => this.applyFilters());
     this.positionControl.valueChanges.subscribe(() => this.applyFilters());
     this.clubControl.valueChanges.subscribe(() => this.applyFilters());
-    
-    // Logar informações sobre os valores do filtro de posição para depuração
-    this.positionControl.valueChanges.subscribe(value => {
-      console.log('Filtro de posição alterado para:', value);
-      if (this.availablePlayers.length > 0) {
-        const primeiroJogador = this.availablePlayers[0];
-        console.log('Exemplo de jogador - posição:', primeiroJogador.posicao);
-        console.log('Exemplo de jogador - posicaoAbreviacao:', primeiroJogador.posicaoAbreviacao);
-      }
-    });
   }
 
   extractUniqueClubs(): void {

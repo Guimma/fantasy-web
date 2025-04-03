@@ -653,6 +653,7 @@ export class MyTeamService {
   clearTeamCache(): void {
     console.log('[MyTeamService] Limpando cache do time');
     this.storageService.remove(this.TEAM_CACHE_KEY);
+    this.storageService.remove(this.FORMATIONS_CACHE_KEY);
     // Também invalidar o cache de atletas da API do Cartola
     this.cartolaApiService.invalidateCache();
   }
@@ -768,5 +769,47 @@ export class MyTeamService {
       column = (column - temp - 1) / 26;
     }
     return letter;
+  }
+
+  /**
+   * Obtém todos os times cadastrados no sistema
+   * @returns Observable com a lista de times
+   */
+  obterTodosTimes(): Observable<MyTeam[]> {
+    console.log('[MyTeamService] Buscando todos os times cadastrados');
+    
+    // Buscar todos os times na planilha
+    return this.makeAuthorizedRequest<any>('get',
+      `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.TEAMS_RANGE}`
+    ).pipe(
+      map(response => {
+        if (!response.values || response.values.length <= 1) {
+          console.log('[MyTeamService] Nenhum time encontrado');
+          return [];
+        }
+
+        // Mapear os times a partir das linhas da planilha
+        const times: MyTeam[] = response.values.slice(1).map((row: any[]) => ({
+          id: row[0],
+          ligaId: row[1],
+          userId: row[2],
+          name: row[3],
+          saldo: parseFloat(row[4] || '0'),
+          formation: row[5] || 'F001',
+          pontuacaoTotal: parseFloat(row[6] || '0'),
+          pontuacaoUltimaRodada: parseFloat(row[7] || '0'),
+          colocacao: parseInt(row[8] || '0', 10),
+          players: [],
+          lineup: []
+        }));
+        
+        console.log(`[MyTeamService] Encontrados ${times.length} times cadastrados`);
+        return times;
+      }),
+      catchError(error => {
+        console.error('[MyTeamService] Erro ao buscar times:', error);
+        return of([]);
+      })
+    );
   }
 } 

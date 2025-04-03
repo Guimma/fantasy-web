@@ -400,7 +400,6 @@ export class SoccerFieldComponent {
     }
     
     const player = event.item.data as MyTeamPlayer;
-    console.log('Jogador arrastado para posição:', player, positionId);
     this.playerDropped.emit({player, positionId});
     this.isDraggingOver = false;
   }

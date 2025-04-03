@@ -187,9 +187,7 @@ export class PlayerListComponent {
       }));
       return;
     }
-    
-    console.log('Agrupando jogadores por posição:', this.players.length, 'jogadores');
-    
+        
     // Inicializa o array de jogadores por posição
     this.playersByPosition = this.positionOrder.map(position => {
       // Find players matching this position
@@ -197,7 +195,6 @@ export class PlayerListComponent {
         this.getPositionCode(player) === position
       );
       
-      console.log(`Posição ${position}:`, playersInPosition.length, 'jogadores');
       return {
         position,
         players: playersInPosition
@@ -248,7 +245,6 @@ export class PlayerListComponent {
       }
     }
     
-    console.log(`Não foi possível determinar a posição para ${player.apelido}`);
     return 'TEC'; // Default fallback
   }
   

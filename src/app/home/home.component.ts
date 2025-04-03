@@ -1,8 +1,8 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { Router, RouterModule } from '@angular/router';
-import { NgForOf, NgIf } from '@angular/common';
+import { CommonModule, NgForOf, NgIf, DatePipe } from '@angular/common';
 import { GoogleAuthService } from '../core/services/google-auth.service';
 import { AuthService } from '../core/services/auth.service';
 import { MatIconModule } from '@angular/material/icon';
@@ -12,6 +12,10 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatRippleModule } from '@angular/material/core';
 import { HeaderComponent } from '../core/components/header/header.component';
 import { FooterComponent } from '../core/components/footer/footer.component';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { CartolaApiService } from '../core/services/cartola-api.service';
+import { Subscription, interval } from 'rxjs';
+import { switchMap, tap, catchError } from 'rxjs/operators';
 
 @Component({
   selector: 'app-home',
@@ -21,18 +25,35 @@ import { FooterComponent } from '../core/components/footer/footer.component';
     RouterModule,
     NgIf,
     NgForOf,
+    DatePipe,
+    CommonModule,
     MatButtonModule,
     MatIconModule,
     MatMenuModule,
     MatTooltipModule,
     MatDividerModule,
     MatRippleModule,
+    MatProgressBarModule,
     HeaderComponent,
     FooterComponent
   ],
   template: `
     <div class="app-container">
       <app-header></app-header>
+      
+      <!-- Faixa de status do mercado -->
+      <div class="market-status-bar" *ngIf="mercadoStatus" [ngClass]="getStatusClass()">
+        <div class="status-content">
+          <div class="status-text">
+            <mat-icon class="status-icon">{{getStatusIcon()}}</mat-icon>
+            <span>{{getStatusText()}}</span>
+          </div>
+          <div class="countdown" *ngIf="showCountdown">
+            <span>{{getCountdownText()}}</span>
+            <mat-progress-bar mode="determinate" [value]="getCountdownProgress()" class="status-progress"></mat-progress-bar>
+          </div>
+        </div>
+      </div>
       
       <main class="main-content">
         <div class="home-container">
@@ -117,13 +138,106 @@ import { FooterComponent } from '../core/components/footer/footer.component';
       display: flex;
       flex-direction: column;
       background-color: var(--background-color);
+      padding-top: 100px; /* Match header height */
+      box-sizing: border-box;
+    }
+
+    .market-status-bar {
+      padding: 10px 16px;
+      color: white;
+      position: relative;
+      width: 100%;
+      box-sizing: border-box;
+      margin-top: 0;
+      z-index: 5;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      font-size: 14px;
+      letter-spacing: 0.3px;
+    }
+    
+    .status-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 6px 0;
+      height: 100%;
+    }
+    
+    .status-text {
+      flex-grow: 1;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .status-icon {
+      font-size: 20px;
+      height: 20px;
+      width: 20px;
+    }
+    
+    .countdown {
+      display: flex;
+      flex-direction: column;
+      min-width: 150px;
+      flex-shrink: 0;
+      width: 200px;
+      border-left: 1px solid rgba(255, 255, 255, 0.3);
+      padding-left: 12px;
+    }
+    
+    .countdown span {
+      margin-bottom: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    
+    .status-progress {
+      height: 6px;
+      border-radius: 3px;
+    }
+    
+    .market-status-open {
+      background-color: #43a047; /* verde */
+    }
+    
+    .market-status-open ::ng-deep .mat-progress-bar-fill::after {
+      background-color: #c8e6c9;
+    }
+    
+    .market-status-closed {
+      background-color: #f44336; /* vermelho */
+    }
+    
+    .market-status-closed ::ng-deep .mat-progress-bar-fill::after {
+      background-color: #ffcdd2;
+    }
+    
+    .market-status-maintenance {
+      background-color: #ff9800; /* laranja */
+    }
+    
+    .market-status-maintenance ::ng-deep .mat-progress-bar-fill::after {
+      background-color: #ffe0b2;
+    }
+    
+    .market-status-evaluating {
+      background-color: #5c6bc0; /* azul indigo */
+    }
+    
+    .market-status-evaluating ::ng-deep .mat-progress-bar-fill::after {
+      background-color: #c5cae9;
     }
 
     .main-content {
       flex: 1;
-      padding-top: 96px;
       width: 100%;
       box-sizing: border-box;
+      margin-top: 16px;
     }
 
     .home-container {
@@ -224,6 +338,10 @@ import { FooterComponent } from '../core/components/footer/footer.component';
     }
 
     @media (max-width: 768px) {
+      .app-container {
+        padding-top: 80px; /* Match smaller header on mobile */
+      }
+    
       .home-container {
         padding: var(--spacing-sm);
       }
@@ -231,6 +349,27 @@ import { FooterComponent } from '../core/components/footer/footer.component';
       .card-container {
         grid-template-columns: 1fr;
         gap: var(--spacing-md);
+      }
+      
+      .status-content {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 8px 0;
+        gap: 8px;
+      }
+      
+      .countdown {
+        width: 100%;
+        margin-top: 4px;
+        border-left: none;
+        padding-left: 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.3);
+        padding-top: 8px;
+      }
+      
+      .market-status-bar {
+        margin-top: 0;
+        padding: 12px 16px;
       }
     }
 
@@ -262,15 +401,29 @@ import { FooterComponent } from '../core/components/footer/footer.component';
     }
   `
 })
-export class HomeComponent implements OnInit {
+export class HomeComponent implements OnInit, OnDestroy {
   protected googleAuthService = inject(GoogleAuthService);
   protected authService = inject(AuthService);
   protected router = inject(Router);
+  private cartolaApiService = inject(CartolaApiService);
   
   currentUser: any = null;
   userTeam: any = null;
   isAdmin = false;
   randomTeamGreeting: string = '';
+  
+  // Status do mercado
+  mercadoStatus: any = null;
+  rodadaAtual: any = null;
+  statusUpdateInterval: Subscription | null = null;
+  
+  // Status do mercado (constantes)
+  private readonly MARKET_STATUS = {
+    CLOSED: 0,      // Mercado fechado
+    OPEN: 1,        // Mercado aberto (antes da rodada)
+    MAINTENANCE: 3, // Em manutenção
+    EVALUATING: 4   // Avaliando (pós-rodada)
+  };
 
   // Lista de frases de boas-vindas para o time
   private teamGreetings: string[] = [
@@ -300,6 +453,202 @@ export class HomeComponent implements OnInit {
     this.isAdmin = this.googleAuthService.isAdmin();
     this.userTeam = this.googleAuthService.getUserTeam();
     this.randomTeamGreeting = this.getRandomTeamGreeting();
+    
+    // Iniciar o monitoramento do status do mercado
+    this.updateMarketStatus();
+    this.startStatusMonitoring();
+  }
+  
+  ngOnDestroy(): void {
+    // Parar o monitoramento ao destruir o componente
+    if (this.statusUpdateInterval) {
+      this.statusUpdateInterval.unsubscribe();
+    }
+  }
+  
+  /**
+   * Inicia o monitoramento periódico do status do mercado
+   */
+  private startStatusMonitoring(): void {
+    // Atualizar a cada minuto
+    this.statusUpdateInterval = interval(60000) // 1 minuto
+      .pipe(
+        tap(() => console.log('[Home] Atualizando status do mercado...')),
+        switchMap(() => this.updateMarketStatus())
+      )
+      .subscribe();
+  }
+  
+  /**
+   * Atualiza o status atual do mercado
+   */
+  private updateMarketStatus(): any {
+    return this.cartolaApiService.getMarketStatus()
+      .pipe(
+        tap(response => {
+          if (response) {
+            this.mercadoStatus = response;
+            console.log('[Home] Status do mercado atualizado:', this.mercadoStatus);
+          }
+        }),
+        switchMap(() => this.cartolaApiService.getCurrentRound()),
+        tap(response => {
+          if (response) {
+            this.rodadaAtual = response;
+            console.log('[Home] Rodada atual atualizada:', this.rodadaAtual);
+          }
+        }),
+        catchError(error => {
+          console.error('[Home] Erro ao atualizar status do mercado:', error);
+          return [];
+        })
+      )
+      .subscribe();
+  }
+  
+  /**
+   * Retorna a classe CSS com base no status do mercado
+   */
+  getStatusClass(): string {
+    if (!this.mercadoStatus) return '';
+    
+    switch (this.mercadoStatus.status_mercado) {
+      case this.MARKET_STATUS.CLOSED:
+        return 'market-status-closed';
+      case this.MARKET_STATUS.OPEN:
+        return 'market-status-open';
+      case this.MARKET_STATUS.MAINTENANCE:
+        return 'market-status-maintenance';
+      case this.MARKET_STATUS.EVALUATING:
+        return 'market-status-evaluating';
+      default:
+        return '';
+    }
+  }
+  
+  /**
+   * Retorna o ícone apropriado com base no status do mercado
+   */
+  getStatusIcon(): string {
+    if (!this.mercadoStatus) return 'info';
+    
+    switch (this.mercadoStatus.status_mercado) {
+      case this.MARKET_STATUS.CLOSED:
+        return 'lock';
+      case this.MARKET_STATUS.OPEN:
+        return 'lock_open';
+      case this.MARKET_STATUS.MAINTENANCE:
+        return 'engineering';
+      case this.MARKET_STATUS.EVALUATING:
+        return 'analytics';
+      default:
+        return 'info';
+    }
+  }
+  
+  /**
+   * Retorna o texto descritivo do status do mercado
+   */
+  getStatusText(): string {
+    if (!this.mercadoStatus) return 'Carregando status do mercado...';
+    
+    switch (this.mercadoStatus.status_mercado) {
+      case this.MARKET_STATUS.CLOSED:
+        return 'Mercado fechado! Rodada em andamento.';
+      case this.MARKET_STATUS.OPEN:
+        return 'Mercado aberto! Escale seu time.';
+      case this.MARKET_STATUS.MAINTENANCE:
+        return 'Mercado em manutenção. Voltaremos em breve.';
+      case this.MARKET_STATUS.EVALUATING:
+        return 'Avaliando a rodada. Mercado temporariamente fechado.';
+      default:
+        return `Status desconhecido (${this.mercadoStatus.status_mercado})`;
+    }
+  }
+  
+  /**
+   * Verifica se deve mostrar o contador
+   */
+  get showCountdown(): boolean {
+    return !!this.mercadoStatus && !!this.rodadaAtual;
+  }
+  
+  /**
+   * Retorna o texto do contador com base no status do mercado
+   */
+  getCountdownText(): string {
+    if (!this.mercadoStatus || !this.rodadaAtual) return '';
+    
+    const now = new Date();
+    let targetDate: Date;
+    let message: string;
+    
+    switch (this.mercadoStatus.status_mercado) {
+      case this.MARKET_STATUS.OPEN:
+        // Contar até o fechamento
+        targetDate = new Date(this.rodadaAtual.inicio);
+        message = 'Fecha em';
+        break;
+      case this.MARKET_STATUS.CLOSED:
+        // Contar até o término da rodada
+        targetDate = new Date(this.rodadaAtual.fim);
+        message = 'Termina em';
+        break;
+      default:
+        return '';
+    }
+    
+    // Calcular a diferença de tempo
+    const diffMs = targetDate.getTime() - now.getTime();
+    if (diffMs <= 0) return 'Atualizando...';
+    
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffHrs = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (diffDays > 0) {
+      return `${message} ${diffDays}d ${diffHrs}h ${diffMins}m`;
+    } else if (diffHrs > 0) {
+      return `${message} ${diffHrs}h ${diffMins}m`;
+    } else {
+      return `${message} ${diffMins}m`;
+    }
+  }
+  
+  /**
+   * Retorna o progresso do contador (0-100)
+   */
+  getCountdownProgress(): number {
+    if (!this.mercadoStatus || !this.rodadaAtual) return 0;
+    
+    const now = new Date().getTime();
+    let startTime: number;
+    let endTime: number;
+    
+    switch (this.mercadoStatus.status_mercado) {
+      case this.MARKET_STATUS.OPEN:
+        // Período de mercado aberto
+        startTime = new Date(this.mercadoStatus.fechamento.day).getTime();
+        endTime = new Date(this.rodadaAtual.inicio).getTime();
+        break;
+      case this.MARKET_STATUS.CLOSED:
+        // Período de rodada em andamento
+        startTime = new Date(this.rodadaAtual.inicio).getTime();
+        endTime = new Date(this.rodadaAtual.fim).getTime();
+        break;
+      default:
+        return 0;
+    }
+    
+    // Calcular o progresso (inverso - quanto menor o tempo restante, maior o progresso)
+    if (endTime <= startTime) return 0;
+    const totalDuration = endTime - startTime;
+    const elapsed = now - startTime;
+    
+    if (elapsed <= 0) return 0;
+    if (elapsed >= totalDuration) return 100;
+    
+    return Math.floor((elapsed / totalDuration) * 100);
   }
 
   // Método para obter uma frase aleatória de boas-vindas

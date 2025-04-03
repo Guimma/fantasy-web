@@ -6,6 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
 import { Observable } from 'rxjs';
 import { tap, switchMap, finalize } from 'rxjs/operators';
+import { RouterModule } from '@angular/router';
 
 // Material
 import { MatCardModule } from '@angular/material/card';
@@ -40,6 +41,7 @@ import { Rodada, PontuacaoRodada, DetalhePontuacaoAtleta } from './models/pontua
   imports: [
     CommonModule,
     FormsModule,
+    RouterModule,
     HeaderComponent,
     FooterComponent,
     MatCardModule,
@@ -71,7 +73,15 @@ import { Rodada, PontuacaoRodada, DetalhePontuacaoAtleta } from './models/pontua
       <div class="main-content">
         <div class="content-container">
           <div class="page-header">
-            <h1>Meu Time</h1>
+            <div class="header-title-area">
+              <h1>Meu Time</h1>
+              
+              <div class="page-actions">
+                <button mat-stroked-button color="primary" [routerLink]="['historico']">
+                  <mat-icon>history</mat-icon> Histórico do Time
+                </button>
+              </div>
+            </div>
             
             <div *ngIf="isLoading" class="loading-spinner">
               <mat-spinner diameter="40"></mat-spinner>
@@ -326,25 +336,32 @@ import { Rodada, PontuacaoRodada, DetalhePontuacaoAtleta } from './models/pontua
     .page-header {
       margin-bottom: 20px;
       display: flex;
-      justify-content: space-between;
-      align-items: center;
+      flex-direction: column;
     }
     
-    .page-header h1 {
-      font-size: 28px;
-      font-weight: 700;
-      color: var(--primary-color);
-      margin: 0;
+    .header-title-area {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    
+    .page-actions {
+      display: flex;
+      gap: 8px;
     }
     
     .loading-spinner {
       display: flex;
-      align-items: center;
+      justify-content: center;
+      margin: 20px 0;
     }
     
     .team-container {
-      display: flex;
-      flex-direction: column;
+      background-color: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     
     .team-header {
@@ -1338,59 +1355,21 @@ export class MyTeamComponent implements OnInit {
   }
 
   /**
-   * Combine all team players with the players who have points
-   * to display a complete list in the score panel.
+   * Exibe os jogadores usados na rodada selecionada com suas pontuações
+   * usando o histórico daquela rodada em vez do elenco atual
    */
   getAllPlayersWithPontuacao(detalhes: DetalhePontuacaoAtleta[], rodadaId: number): any[] {
     if (!this.myTeam) return [];
     
-    const result: any[] = [];
-    const detalhesMap = new Map<string, DetalhePontuacaoAtleta>();
+    // Como os detalhes já contêm os jogadores do histórico da rodada
+    // graças ao método getDetalhesPontuacaoTime que busca do HistoricoTimes,
+    // podemos simplesmente retornar os detalhes organizados
     
-    // Create a map of athletes with their details
-    detalhes.forEach(detalhe => {
-      detalhesMap.set(detalhe.atleta.id, detalhe);
-    });
-    
-    // Add all players from the team
-    this.myTeam.players.forEach(player => {
-      const detalhe = detalhesMap.get(player.id);
-      
-      if (detalhe) {
-        // Player has points data
-        result.push({
-          ...detalhe.atleta,
-          pontuacao: detalhe.pontuacao,
-          scout: detalhe.scout,
-          consideradoNaCalculacao: true
-        });
-      } else {
-        // Player doesn't have points data
-        result.push({
-          id: player.id,
-          apelido: player.apelido,
-          posicao: player.posicao,
-          posicaoAbreviacao: player.posicaoAbreviacao,
-          clube: player.clube,
-          clubeAbreviacao: player.clubeAbreviacao,
-          pontuacao: 0,
-          scout: {},
-          consideradoNaCalculacao: false
-        });
-      }
-    });
-    
-    // Sort by position (GOL first, then ZAG, LAT, MEI, ATA, TEC)
-    const positionOrder = { 'GOL': 1, 'ZAG': 2, 'LAT': 3, 'MEI': 4, 'ATA': 5, 'TEC': 6 };
-    
-    return result.sort((a, b) => {
-      const posA = this.getPositionCode(a.posicao);
-      const posB = this.getPositionCode(b.posicao);
-      
-      const orderA = positionOrder[posA as keyof typeof positionOrder] || 99;
-      const orderB = positionOrder[posB as keyof typeof positionOrder] || 99;
-      
-      return orderA - orderB;
-    });
+    return detalhes.map(detalhe => ({
+      ...detalhe.atleta,
+      pontuacao: detalhe.pontuacao,
+      scout: detalhe.scout,
+      consideradoNaCalculacao: true
+    })).sort((a, b) => b.pontuacao - a.pontuacao); // Ordena por pontuação decrescente
   }
 } 

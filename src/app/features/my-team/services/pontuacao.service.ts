@@ -8,6 +8,7 @@ import { GoogleAuthService } from '../../../core/services/google-auth.service';
 import { MyTeam, MyTeamPlayer } from '../models/my-team.model';
 import { Rodada, PontuacaoRodada, AtletaPontuado, DetalhePontuacaoAtleta } from '../models/pontuacao.model';
 import { Athlete } from '../../draft/models/draft.model';
+import { TeamHistoryService } from './team-history.service';
 import { isDevMode } from '@angular/core';
 
 @Injectable({
@@ -19,10 +20,12 @@ export class PontuacaoService {
   private notificationService = inject(NotificationService);
   private cartolaApiService = inject(CartolaApiService);
   private googleAuthService = inject(GoogleAuthService);
+  private teamHistoryService = inject(TeamHistoryService);
   
   private readonly SHEET_ID = '1n3FjgSy19YCHZhsRA3HR0d92o3yAHhLBjYwEHSYJwjI';
   private readonly PONTUACOES_RANGE = 'Pontuacoes!A:E'; // id_pontuacao, id_time, id_rodada, pontuacao_total, data_calculo
   private readonly PONTUACOES_ATLETAS_RANGE = 'PontuacoesAtletas!A:D'; // id_pontuacao, id_atleta, pontuacao, scout (JSON)
+  private readonly HISTORICO_TIMES_RANGE = 'HistoricoTimes!A:I'; // id_registro, id_time, id_atleta, id_cartola, status_time, valor_compra, data_aquisicao, rodada_id, data_registro
   
   private readonly RODADA_CACHE_KEY = 'rodada_atual';
   private readonly PONTUACOES_CACHE_KEY = 'pontuacoes_rodada_';
@@ -267,15 +270,15 @@ export class PontuacaoService {
           
           pontuacoes[id] = {
             atleta_id: id,
-            id: id,
+            cartola_id: id,
             pontuacao: atleta.pontuacao,
             scout: atleta.scout || {},
             nome: atleta.nome,
             apelido: atleta.apelido,
             posicao: atleta.posicao,
-            posicao_abreviacao: atleta.posicao_abreviacao,
+            posicaoAbreviacao: atleta.posicao_abreviacao,
             clube: atleta.clube,
-            clube_abreviacao: atleta.clube_abreviacao
+            clubeAbreviacao: atleta.clube_abreviacao
           };
         });
 
@@ -294,248 +297,197 @@ export class PontuacaoService {
 
   /**
    * Calcula a pontuação de um time para uma rodada específica
-   * levando em consideração a formação do time e as regras de pontuação por posição
+   * @param team Time a ser calculado
+   * @param rodadaId Rodada a ser calculada
+   * @returns Observable com o objeto de pontuação calculado
    */
-  calcularPontuacaoTime(time: MyTeam, rodadaId: number): Observable<PontuacaoRodada> {
-    return this.getAtletasPontuadosRodada(rodadaId).pipe(
-      map(pontuacoesAtletas => {
-        // Obter a formação do time
-        const formacao = time.formation;
+  calcularPontuacaoTime(team: MyTeam, rodadaId: number): Observable<PontuacaoRodada> {
+    console.log(`[PontuacaoService] Calculando pontuação do time ${team.id} para a rodada ${rodadaId}`);
+    
+    // Para rodadas anteriores à atual, usar o histórico de times
+    return this.getRodadaAtual().pipe(
+      switchMap(rodadaAtual => {
+        // Verificar se é uma rodada passada
+        const isRodadaPassada = rodadaId < rodadaAtual.id;
+        console.log(`[PontuacaoService] Rodada ${rodadaId} é ${isRodadaPassada ? 'passada' : 'atual/futura'}`);
         
-        // Extrair os números da formação (4-3-3, 4-4-2, etc.)
-        const numerosFormacao = this.extrairNumerosFormacao(formacao);
+        // Se for rodada passada, buscar jogadores do histórico
+        if (isRodadaPassada) {
+          console.log(`[PontuacaoService] Buscando jogadores do histórico para o time ${team.id} na rodada ${rodadaId}`);
+          return this.obterJogadoresHistoricoTimeRodada(team.id, rodadaId).pipe(
+            switchMap(jogadoresHistorico => {
+              if (!jogadoresHistorico || jogadoresHistorico.length === 0) {
+                console.warn(`[PontuacaoService] Nenhum jogador encontrado no histórico para o time ${team.id} na rodada ${rodadaId}`);
+                // Se não encontrar jogadores no histórico, usar o elenco atual como fallback
+                console.log(`[PontuacaoService] Usando elenco atual como fallback`);
+                return this.calcularPontuacaoTimeComJogadores(team, rodadaId, team.players);
+              }
+              
+              console.log(`[PontuacaoService] Encontrados ${jogadoresHistorico.length} jogadores no histórico para o time ${team.id} na rodada ${rodadaId}`);
+              // Usar os jogadores do histórico para calcular a pontuação
+              return this.calcularPontuacaoTimeComJogadores(team, rodadaId, jogadoresHistorico);
+            })
+          );
+        } else {
+          // Para rodada atual ou futura, usar o elenco atual do time
+          console.log(`[PontuacaoService] Usando elenco atual para calcular pontuação da rodada ${rodadaId}`);
+          return this.calcularPontuacaoTimeComJogadores(team, rodadaId, team.players);
+        }
+      })
+    );
+  }
+
+  /**
+   * Obtém os jogadores do histórico de um time para uma rodada específica
+   * @param timeId ID do time
+   * @param rodadaId ID da rodada
+   * @returns Observable com a lista de jogadores
+   */
+  private obterJogadoresHistoricoTimeRodada(timeId: string, rodadaId: number): Observable<Athlete[]> {
+    console.log(`[PontuacaoService] Obtendo jogadores do histórico para time ${timeId} na rodada ${rodadaId}`);
+    
+    // Usar o TeamHistoryService para obter o histórico do time na rodada
+    return this.teamHistoryService.getTimeHistoricoRodada(timeId, rodadaId).pipe(
+      map(historico => {
+        if (!historico) {
+          console.warn(`[PontuacaoService] Nenhum histórico encontrado para o time ${timeId} na rodada ${rodadaId}`);
+          return [];
+        }
         
-        // Número de jogadores por posição conforme a formação
-        const numZagueiros = numerosFormacao ? numerosFormacao[0] : 2;
-        const numMeias = numerosFormacao ? numerosFormacao[1] : 3;
-        const numAtacantes = numerosFormacao ? numerosFormacao[2] : 3;
-        const numLaterais = 2; // Sempre 2 laterais
-        const numGoleiros = 1; // Sempre 1 goleiro
-        const numTecnicos = 1; // Sempre 1 técnico
+        console.log(`[PontuacaoService] Histórico encontrado com ${historico.jogadores.length} jogadores`);
+        return historico.jogadores;
+      }),
+      // Se ocorrer erro, retornar array vazio
+      catchError(error => {
+        console.error(`[PontuacaoService] Erro ao obter histórico do time ${timeId} na rodada ${rodadaId}:`, error);
+        return of([]);
+      })
+    );
+  }
+
+  /**
+   * Calcula a pontuação de um time usando uma lista específica de jogadores
+   * @param team Time a ser calculado
+   * @param rodadaId Rodada a ser calculada
+   * @param jogadores Lista de jogadores a serem considerados no cálculo
+   * @returns Observable com o objeto de pontuação calculado
+   */
+  private calcularPontuacaoTimeComJogadores(team: MyTeam, rodadaId: number, jogadores: Athlete[] | MyTeamPlayer[]): Observable<PontuacaoRodada> {
+    console.log(`[PontuacaoService] Calculando pontuação para ${jogadores.length} jogadores do time ${team.id} na rodada ${rodadaId}`);
+    
+    // Extrair os IDs dos jogadores para buscar pontuações
+    const cartolaIds = jogadores.map(jogador => jogador.idCartola).filter(id => !!id);
+    
+    if (cartolaIds.length === 0) {
+      console.warn(`[PontuacaoService] Nenhum ID válido encontrado para jogadores do time ${team.id}`);
+      
+      // Retornar pontuação zerada
+      return of({
+        time_id: team.id,
+        rodada_id: rodadaId,
+        pontuacao_total: 0,
+        data_calculo: new Date(),
+        atletas_pontuados: []
+      });
+    }
+    
+    // Buscar as pontuações dos jogadores na API do Cartola
+    return this.cartolaApiService.getAthletesScores(rodadaId).pipe(
+      map(response => {
+        if (!response || !response.atletas) {
+          console.warn(`[PontuacaoService] Sem dados de pontuação para a rodada ${rodadaId}`);
+          return {
+            time_id: team.id,
+            rodada_id: rodadaId,
+            pontuacao_total: 0,
+            data_calculo: new Date(),
+            atletas_pontuados: []
+          };
+        }
         
-        console.log(`Formação ${formacao}: ${numZagueiros}-${numMeias}-${numAtacantes}`);
-        
-        // Agrupar os atletas do time por posição
-        const atletasPorPosicao: Record<string, MyTeamPlayer[]> = this.agruparAtletasPorPosicao(time.players);
-        
-        // Lista para armazenar os atletas pontuados
         const atletasPontuados: AtletaPontuado[] = [];
-        
-        // Calcular a pontuação por posição e adicionar à lista de atletas pontuados
         let pontuacaoTotal = 0;
         
-        // Goleiros (sempre 1)
-        pontuacaoTotal += this.calcularPontuacaoPorPosicao(
-          atletasPorPosicao['GOL'] || [], 
-          pontuacoesAtletas, 
-          numGoleiros, 
-          atletasPontuados
-        );
+        // Verificar e acumular pontuações para cada jogador do time
+        cartolaIds.forEach(cartolaId => {
+          const atletaPontuacao = response.atletas[cartolaId];
+          if (atletaPontuacao) {
+            // Encontrar dados do jogador no elenco
+            const jogador = jogadores.find(j => j.idCartola === cartolaId);
+            if (jogador) {
+              // Criar o objeto de atleta pontuado
+              const atletaPontuado: AtletaPontuado = {
+                atleta_id: jogador.id,
+                cartola_id: cartolaId,
+                nome: jogador.nome || '',
+                apelido: jogador.apelido || '',
+                posicao: jogador.posicao || '',
+                posicaoAbreviacao: jogador.posicaoAbreviacao || '',
+                clube: jogador.clube || '',
+                clubeAbreviacao: jogador.clubeAbreviacao || '',
+                pontuacao: atletaPontuacao.pontuacao,
+                scout: atletaPontuacao.scout || {},
+                entrou_em_campo: true,
+                consideradoNaCalculacao: true
+              };
+              
+              // Acumular pontuação
+              pontuacaoTotal += atletaPontuacao.pontuacao;
+              atletasPontuados.push(atletaPontuado);
+              
+              console.log(`[PontuacaoService] Jogador ${atletaPontuado.apelido} (${cartolaId}) pontuou ${atletaPontuacao.pontuacao} na rodada ${rodadaId}`);
+            }
+          }
+        });
         
-        // Zagueiros
-        pontuacaoTotal += this.calcularPontuacaoPorPosicao(
-          atletasPorPosicao['ZAG'] || [], 
-          pontuacoesAtletas, 
-          numZagueiros, 
-          atletasPontuados
-        );
+        // Adicionar jogadores que não pontuaram
+        jogadores.forEach(jogador => {
+          if (jogador.idCartola && !atletasPontuados.some(a => a.cartola_id === jogador.idCartola)) {
+            const atletaPontuado: AtletaPontuado = {
+              atleta_id: jogador.id,
+              cartola_id: jogador.idCartola,
+              nome: jogador.nome || '',
+              apelido: jogador.apelido || '',
+              foto_url: (jogador as any).foto_url || '',
+              posicao: jogador.posicao || '',
+              posicaoAbreviacao: jogador.posicaoAbreviacao || '',
+              clube: jogador.clube || '',
+              clubeAbreviacao: jogador.clubeAbreviacao || '',
+              pontuacao: 0,
+              scout: {},
+              entrou_em_campo: false,
+              consideradoNaCalculacao: false
+            };
+            
+            atletasPontuados.push(atletaPontuado);
+            console.log(`[PontuacaoService] Jogador ${atletaPontuado.apelido} (${jogador.idCartola}) não pontuou na rodada ${rodadaId}`);
+          }
+        });
         
-        // Laterais (sempre 2)
-        pontuacaoTotal += this.calcularPontuacaoPorPosicao(
-          atletasPorPosicao['LAT'] || [], 
-          pontuacoesAtletas, 
-          numLaterais, 
-          atletasPontuados
-        );
+        console.log(`[PontuacaoService] Time ${team.id} - Rodada ${rodadaId}: Pontuação total = ${pontuacaoTotal} com ${atletasPontuados.length} jogadores`);
         
-        // Meias
-        pontuacaoTotal += this.calcularPontuacaoPorPosicao(
-          atletasPorPosicao['MEI'] || [], 
-          pontuacoesAtletas, 
-          numMeias, 
-          atletasPontuados
-        );
-        
-        // Atacantes
-        pontuacaoTotal += this.calcularPontuacaoPorPosicao(
-          atletasPorPosicao['ATA'] || [], 
-          pontuacoesAtletas, 
-          numAtacantes, 
-          atletasPontuados
-        );
-        
-        // Técnicos (sempre 1)
-        pontuacaoTotal += this.calcularPontuacaoPorPosicao(
-          atletasPorPosicao['TEC'] || [], 
-          pontuacoesAtletas, 
-          numTecnicos, 
-          atletasPontuados
-        );
-        
-        // Criar o objeto de pontuação da rodada
-        const pontuacaoRodada: PontuacaoRodada = {
-          time_id: time.id,
+        // Criar objeto de pontuação para retorno
+        return {
+          time_id: team.id,
           rodada_id: rodadaId,
           pontuacao_total: pontuacaoTotal,
           data_calculo: new Date(),
           atletas_pontuados: atletasPontuados
         };
-
-        console.log(`Pontuação total do time ${time.name}: ${pontuacaoTotal}`, atletasPontuados);
-        return pontuacaoRodada;
+      }),
+      catchError(error => {
+        console.error(`[PontuacaoService] Erro ao calcular pontuação do time ${team.id} para a rodada ${rodadaId}:`, error);
+        
+        // Retornar pontuação zerada em caso de erro
+        return of({
+          time_id: team.id,
+          rodada_id: rodadaId,
+          pontuacao_total: 0,
+          data_calculo: new Date(),
+          atletas_pontuados: []
+        });
       })
     );
-  }
-  
-  /**
-   * Extrai os números da formação (4-3-3, 4-4-2, etc.)
-   */
-  private extrairNumerosFormacao(formacaoId: string): number[] | null {
-    // Caso seja uma formação com ID, precisamos buscar o nome da formação
-    // Por exemplo, se formacaoId = 'F001', precisamos achar que isso é '4-3-3'
-    // Como não temos acesso direto às formações, vamos tentar extrair números se possível
-    
-    // Verificar se o ID da formação já contém os números (ex: '4-3-3')
-    const match = formacaoId.match(/(\d+)-(\d+)-(\d+)/);
-    if (match) {
-      return [
-        parseInt(match[1], 10),
-        parseInt(match[2], 10),
-        parseInt(match[3], 10)
-      ];
-    }
-    
-    // Caso seja um ID específico, usamos mapeamentos conhecidos
-    // Estes IDs devem corresponder aos usados em Formation no modelo
-    const formacoesConhecidas: Record<string, number[]> = {
-      'F001': [4, 3, 3], // 4-3-3
-      'F002': [4, 4, 2], // 4-4-2
-      'F003': [3, 4, 3], // 3-4-3
-      // Adicionar outras formações conforme necessário
-    };
-    
-    return formacoesConhecidas[formacaoId] || null;
-  }
-  
-  /**
-   * Agrupa os atletas de um time por posição
-   */
-  private agruparAtletasPorPosicao(atletas: MyTeamPlayer[]): Record<string, MyTeamPlayer[]> {
-    const atletasPorPosicao: Record<string, MyTeamPlayer[]> = {};
-    
-    atletas.forEach(atleta => {
-      const posicao = atleta.posicaoAbreviacao;
-      if (!atletasPorPosicao[posicao]) {
-        atletasPorPosicao[posicao] = [];
-      }
-      atletasPorPosicao[posicao].push(atleta);
-    });
-    
-    return atletasPorPosicao;
-  }
-  
-  /**
-   * Calcula a pontuação para uma posição específica,
-   * selecionando os N atletas com maior pontuação,
-   * e adiciona os atletas pontuados à lista
-   */
-  private calcularPontuacaoPorPosicao(
-    atletas: MyTeamPlayer[], 
-    pontuacoesAtletas: Record<string, AtletaPontuado>,
-    numeroAtletas: number,
-    atletasPontuados: AtletaPontuado[]
-  ): number {
-    if (atletas.length === 0) {
-      return 0;
-    }
-    
-    // Array para armazenar os atletas com suas pontuações
-    const atletasComPontuacao: {atleta: MyTeamPlayer, pontuacao: number, pontuado: boolean}[] = [];
-    
-    // Associar cada atleta à sua pontuação
-    atletas.forEach(atleta => {
-      const atletaPontuado = pontuacoesAtletas[atleta.idCartola];
-      const pontuacao = atletaPontuado ? atletaPontuado.pontuacao : 0;
-      const pontuado = atletaPontuado !== undefined;
-      
-      atletasComPontuacao.push({
-        atleta,
-        pontuacao,
-        pontuado
-      });
-    });
-    
-    // Ordenar por jogadores pontuados primeiro (mesmo que negativos), depois por pontuação
-    atletasComPontuacao.sort((a, b) => {
-      // Primeiro critério: se foi pontuado ou não
-      if (a.pontuado !== b.pontuado) {
-        return a.pontuado ? -1 : 1;
-      }
-      
-      // Segundo critério: pontuação (maior primeiro)
-      return b.pontuacao - a.pontuacao;
-    });
-    
-    // Selecionar os melhores N atletas (ou menos, se não houver N)
-    const melhoresAtletas = atletasComPontuacao.slice(0, numeroAtletas);
-    
-    // Calcular a pontuação total e adicionar os atletas pontuados à lista
-    let pontuacaoTotal = 0;
-    
-    melhoresAtletas.forEach(item => {
-      if (item.pontuado) {
-        const atletaPontuado = pontuacoesAtletas[item.atleta.idCartola];
-        pontuacaoTotal += atletaPontuado.pontuacao;
-        
-        // Adicionar informações completas do atleta ao objeto de pontuação
-        const atletaCompleto: AtletaPontuado = {
-          ...atletaPontuado,
-          nome: item.atleta.nome,
-          apelido: item.atleta.apelido,
-          posicao: item.atleta.posicao,
-          posicao_abreviacao: item.atleta.posicaoAbreviacao,
-          clube: item.atleta.clube,
-          clube_abreviacao: item.atleta.clubeAbreviacao
-        };
-        
-        atletasPontuados.push(atletaCompleto);
-      }
-      // Não contabilizamos atletas que não pontuaram
-    });
-    
-    // Log detalhado para depuração
-    this.logDetalhesCalculo(atletas[0]?.posicaoAbreviacao || 'Desconhecido', atletasComPontuacao, melhoresAtletas, numeroAtletas, pontuacaoTotal);
-    
-    return pontuacaoTotal;
-  }
-  
-  /**
-   * Loga detalhes do cálculo de pontuação para ajudar na depuração
-   */
-  private logDetalhesCalculo(
-    posicao: string,
-    todosAtletas: {atleta: MyTeamPlayer, pontuacao: number, pontuado: boolean}[],
-    selecionados: {atleta: MyTeamPlayer, pontuacao: number, pontuado: boolean}[],
-    numeroRequerido: number,
-    pontuacaoTotal: number
-  ): void {
-    console.group(`Cálculo de pontuação: ${posicao}`);
-    console.log(`Total de jogadores nesta posição: ${todosAtletas.length}`);
-    console.log(`Número de jogadores requeridos pela formação: ${numeroRequerido}`);
-    console.log(`Jogadores pontuados: ${todosAtletas.filter(a => a.pontuado).length}`);
-    
-    console.log('Todos jogadores desta posição:');
-    todosAtletas.forEach(item => {
-      console.log(`${item.atleta.apelido}: ${item.pontuado ? item.pontuacao : 'Não pontuou'}`);
-    });
-    
-    console.log('Jogadores selecionados para pontuação:');
-    selecionados.forEach(item => {
-      console.log(`${item.atleta.apelido}: ${item.pontuado ? item.pontuacao : 'Não pontuou'} ${item.pontuado ? '✓' : '✗'}`);
-    });
-    
-    console.log(`Pontuação total desta posição: ${pontuacaoTotal}`);
-    console.groupEnd();
   }
 
   /**
@@ -705,9 +657,17 @@ export class PontuacaoService {
               // Criar o objeto base
               const atletaPontuado: AtletaPontuado = {
                 atleta_id: atletaId,
-                id: atletaId,
+                cartola_id: atletaId,
+                nome: '',
+                apelido: '',
+                posicao: '',
+                posicaoAbreviacao: '',
+                clube: '',
+                clubeAbreviacao: '',
                 pontuacao: parseFloat(row[2] || '0'),
-                scout: row[3] ? JSON.parse(row[3]) : {}
+                scout: row[3] ? JSON.parse(row[3]) : {},
+                entrou_em_campo: true,
+                consideradoNaCalculacao: true
               };
               
               // Adicionar informações extras se disponíveis (a partir da coluna 4)
@@ -722,13 +682,13 @@ export class PontuacaoService {
                 // Determinar a abreviação da posição
                 if (row[6]) {
                   const posicaoLower = row[6].toLowerCase();
-                  if (posicaoLower.includes('goleiro')) atletaPontuado.posicao_abreviacao = 'GOL';
-                  else if (posicaoLower.includes('zagueiro')) atletaPontuado.posicao_abreviacao = 'ZAG';
-                  else if (posicaoLower.includes('lateral')) atletaPontuado.posicao_abreviacao = 'LAT';
-                  else if (posicaoLower.includes('meia')) atletaPontuado.posicao_abreviacao = 'MEI';
-                  else if (posicaoLower.includes('atacante')) atletaPontuado.posicao_abreviacao = 'ATA';
-                  else if (posicaoLower.includes('técnico') || posicaoLower.includes('tecnico')) atletaPontuado.posicao_abreviacao = 'TEC';
-                  else atletaPontuado.posicao_abreviacao = 'JOG';
+                  if (posicaoLower.includes('goleiro')) atletaPontuado.posicaoAbreviacao = 'GOL';
+                  else if (posicaoLower.includes('zagueiro')) atletaPontuado.posicaoAbreviacao = 'ZAG';
+                  else if (posicaoLower.includes('lateral')) atletaPontuado.posicaoAbreviacao = 'LAT';
+                  else if (posicaoLower.includes('meia')) atletaPontuado.posicaoAbreviacao = 'MEI';
+                  else if (posicaoLower.includes('atacante')) atletaPontuado.posicaoAbreviacao = 'ATA';
+                  else if (posicaoLower.includes('técnico') || posicaoLower.includes('tecnico')) atletaPontuado.posicaoAbreviacao = 'TEC';
+                  else atletaPontuado.posicaoAbreviacao = 'JOG';
                 }
               }
               if (row.length > 7) {
@@ -736,7 +696,7 @@ export class PontuacaoService {
                 // Se tiver clube, tentar determinar a abreviação
                 if (row[7]) {
                   // Extrair as 3 primeiras letras do nome do clube
-                  atletaPontuado.clube_abreviacao = row[7].substring(0, 3).toUpperCase();
+                  atletaPontuado.clubeAbreviacao = row[7].substring(0, 3).toUpperCase();
                 }
               }
               
@@ -767,14 +727,79 @@ export class PontuacaoService {
    * incluindo as informações completas de cada atleta
    */
   getDetalhesPontuacaoTime(timeId: string, rodadaId: number): Observable<DetalhePontuacaoAtleta[]> {
+    // Primeiro verificar se temos os pontos calculados
     return this.getPontuacaoTimeRodada(timeId, rodadaId).pipe(
       switchMap(pontuacao => {
         if (!pontuacao || pontuacao.atletas_pontuados.length === 0) {
+          // Se não existirem pontos calculados, retornar array vazio
+          console.log(`[PontuacaoService] Nenhuma pontuação encontrada para o time ${timeId} na rodada ${rodadaId}`);
           return of([]);
         }
 
-        // Buscar informações completas dos atletas
-        return this.getDetalhesAtletas(pontuacao.atletas_pontuados);
+        // Obter o histórico do time para a rodada
+        return this.teamHistoryService.getTimeHistoricoRodada(timeId, rodadaId).pipe(
+          switchMap(historico => {
+            if (!historico) {
+              console.log(`[PontuacaoService] Histórico não encontrado para o time ${timeId} na rodada ${rodadaId}, usando dados da pontuação`);
+              // Se não encontrar histórico, usar apenas os atletas pontuados
+              return this.getDetalhesAtletas(pontuacao.atletas_pontuados);
+            }
+
+            console.log(`[PontuacaoService] Usando histórico do time ${timeId} na rodada ${rodadaId} com ${historico.jogadores.length} jogadores`);
+            
+            // Combinar os dados dos jogadores do histórico com as pontuações calculadas
+            const detalhes: DetalhePontuacaoAtleta[] = [];
+            
+            // Mapear atletas pontuados por ID para busca rápida
+            const atletasMap = new Map<string, AtletaPontuado>();
+            pontuacao.atletas_pontuados.forEach(atletaPontuado => {
+              atletasMap.set(atletaPontuado.atleta_id, atletaPontuado);
+            });
+            
+            // Para cada jogador no histórico, verificar se tem pontuação
+            historico.jogadores.forEach(jogador => {
+              const atletaPontuado = atletasMap.get(jogador.id);
+              
+              if (atletaPontuado) {
+                // Adicionar jogador do histórico com sua pontuação
+                detalhes.push({
+                  rodada_id: rodadaId,
+                  atleta: jogador,
+                  pontuacao: atletaPontuado.pontuacao,
+                  scout: atletaPontuado.scout || {}
+                });
+              } else {
+                // Jogador está no histórico mas não pontuou
+                detalhes.push({
+                  rodada_id: rodadaId,
+                  atleta: jogador,
+                  pontuacao: 0,
+                  scout: {}
+                });
+              }
+            });
+            
+            // Se houver atletas pontuados que não estão no histórico, adicioná-los também
+            pontuacao.atletas_pontuados.forEach(atletaPontuado => {
+              const jaAdicionado = detalhes.some(d => d.atleta.id === atletaPontuado.atleta_id);
+              
+              if (!jaAdicionado) {
+                // Criar um objeto atleta a partir dos dados da pontuação
+                const atleta: Athlete = this.createFallbackAthlete(atletaPontuado);
+                
+                detalhes.push({
+                  rodada_id: rodadaId,
+                  atleta: atleta,
+                  pontuacao: atletaPontuado.pontuacao,
+                  scout: atletaPontuado.scout || {}
+                });
+              }
+            });
+            
+            console.log(`[PontuacaoService] Total de ${detalhes.length} detalhes de atletas retornados para o time ${timeId} na rodada ${rodadaId}`);
+            return of(detalhes);
+          })
+        );
       })
     );
   }
@@ -890,9 +915,9 @@ export class PontuacaoService {
       nome: atletaPontuado.nome || `Jogador ${atletaPontuado.atleta_id?.toString().substring(0, 4)}`,
       apelido: atletaPontuado.apelido || `Jogador ${atletaPontuado.atleta_id?.toString().substring(0, 4)}`,
       posicao: atletaPontuado.posicao || 'Meia',
-      posicaoAbreviacao: atletaPontuado.posicao_abreviacao || 'MEI',
+      posicaoAbreviacao: atletaPontuado.posicaoAbreviacao || 'MEI',
       clube: atletaPontuado.clube || 'Time',
-      clubeAbreviacao: atletaPontuado.clube_abreviacao || 'TIM',
+      clubeAbreviacao: atletaPontuado.clubeAbreviacao || 'TIM',
       preco: 0,
       mediaPontos: 0,
       jogos: 0,
