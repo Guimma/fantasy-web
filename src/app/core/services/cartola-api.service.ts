@@ -24,9 +24,12 @@ export class CartolaApiService {
   private apiGet<T>(endpoint: string): Observable<T> {
     const url = `${this.BASE_URL}${endpoint}`;
     
-    // In development, we can call the API directly
-    // In production, we need to use the proxy
-    if (!environment.production) {
+    // For production or GitHub Pages deployment, always use proxy
+    // Only use direct API calls in local development
+    const isGitHubPages = window.location.hostname.includes('github.io');
+    const forceProxy = environment.production || isGitHubPages;
+    
+    if (!forceProxy) {
       console.log(`[CartolaAPI] Chamada direta em ambiente de desenvolvimento: ${url}`);
       return this.http.get<T>(url).pipe(
         catchError(error => {
@@ -40,7 +43,7 @@ export class CartolaApiService {
         })
       );
     } else {
-      console.log(`[CartolaAPI] Chamada via proxy em ambiente de produção: ${url}`);
+      console.log(`[CartolaAPI] Chamada via proxy em ambiente de produção ou GitHub Pages: ${url}`);
       return this.corsProxy.get<T>(url).pipe(
         catchError(proxyError => {
           console.error(`[CartolaAPI] Erro na chamada via proxy: ${proxyError.message}`);
