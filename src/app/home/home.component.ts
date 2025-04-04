@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, OnDestroy } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, Inject } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { Router, RouterModule } from '@angular/router';
@@ -16,6 +16,12 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { CartolaApiService } from '../core/services/cartola-api.service';
 import { Subscription, interval } from 'rxjs';
 import { switchMap, tap, catchError } from 'rxjs/operators';
+import { NotificationService } from '../core/services/notification.service';
+import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
+import { MatDialogModule, MatDialog, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MatInputModule } from '@angular/material/input';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { ClipboardModule } from '@angular/cdk/clipboard';
 
 @Component({
   selector: 'app-home',
@@ -35,7 +41,12 @@ import { switchMap, tap, catchError } from 'rxjs/operators';
     MatRippleModule,
     MatProgressBarModule,
     HeaderComponent,
-    FooterComponent
+    FooterComponent,
+    MatSnackBarModule,
+    MatDialogModule,
+    MatInputModule,
+    MatFormFieldModule,
+    ClipboardModule
   ],
   template: `
     <div class="app-container">
@@ -399,6 +410,32 @@ import { switchMap, tap, catchError } from 'rxjs/operators';
       font: 400 14px/20px "DM Sans", sans-serif;
       letter-spacing: normal;
     }
+
+    .empty-state mat-icon {
+      font-size: 64px;
+      height: 64px;
+      width: 64px;
+      margin-bottom: 20px;
+      color: var(--primary-color);
+    }
+    
+    .admin-debug-info {
+      margin: 0 auto 16px auto;
+      max-width: 1200px;
+      padding: 0 var(--spacing-md);
+      display: flex;
+      justify-content: flex-end;
+    }
+    
+    .admin-debug-info button {
+      padding: 4px 12px;
+      font-size: 12px;
+      opacity: 0.8;
+    }
+    
+    .admin-debug-info button:hover {
+      opacity: 1;
+    }
   `
 })
 export class HomeComponent implements OnInit, OnDestroy {
@@ -406,6 +443,8 @@ export class HomeComponent implements OnInit, OnDestroy {
   protected authService = inject(AuthService);
   protected router = inject(Router);
   private cartolaApiService = inject(CartolaApiService);
+  private notificationService = inject(NotificationService);
+  private dialog = inject(MatDialog);
   
   currentUser: any = null;
   userTeam: any = null;
@@ -669,5 +708,177 @@ export class HomeComponent implements OnInit, OnDestroy {
     if (nameParts.length === 1) return nameParts[0].charAt(0).toUpperCase();
     
     return (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase();
+  }
+
+  showUserDebugInfo(): void {
+    const user = this.googleAuthService.currentUser;
+    if (!user) {
+      this.notificationService.error('No user information available');
+      return;
+    }
+    
+    // Open dialog with user information
+    this.dialog.open(UserIdDialogComponent, {
+      data: {
+        id: user.id,
+        originalId: user.originalId,
+        dbId: user.dbId,
+        email: user.email,
+        name: user.name
+      },
+      width: '500px'
+    });
+    
+    // Log to console for debugging
+    console.log('User Debug Info:', {
+      googleId: user.id,
+      originalId: user.originalId,
+      dbId: user.dbId,
+      email: user.email,
+      name: user.name
+    });
+  }
+}
+
+// User ID Dialog Component
+@Component({
+  selector: 'app-user-id-dialog',
+  standalone: true,
+  imports: [
+    CommonModule,
+    MatButtonModule,
+    MatDialogModule,
+    MatFormFieldModule,
+    MatInputModule,
+    ClipboardModule,
+    MatIconModule
+  ],
+  template: `
+    <h2 mat-dialog-title>Informações de Usuário</h2>
+    <mat-dialog-content>
+      <div class="important-notice">
+        <mat-icon color="primary">info</mat-icon>
+        <span>
+          <strong>IMPORTANTE:</strong> O administrador precisa atualizar seu ID na planilha.
+          Compartilhe seu Google ID abaixo.
+        </span>
+      </div>
+      
+      <div class="user-info-field highlight">
+        <div class="field-label">Google ID:</div>
+        <div class="field-value">{{ data.id }}</div>
+        <button 
+          mat-icon-button 
+          [cdkCopyToClipboard]="data.id"
+          (click)="copyNotification('Google ID')"
+          matTooltip="Copiar Google ID">
+          <mat-icon>content_copy</mat-icon>
+        </button>
+      </div>
+      
+      <div class="user-info-field">
+        <div class="field-label">Email:</div>
+        <div class="field-value">{{ data.email }}</div>
+      </div>
+      
+      <div class="user-info-field">
+        <div class="field-label">Nome:</div>
+        <div class="field-value">{{ data.name }}</div>
+      </div>
+      
+      <div class="user-info-field" *ngIf="data.dbId">
+        <div class="field-label">ID Banco de Dados:</div>
+        <div class="field-value">{{ data.dbId }}</div>
+      </div>
+      
+      <div class="copy-all-section">
+        <button 
+          mat-raised-button 
+          color="primary"
+          [cdkCopyToClipboard]="getAllInfoText()"
+          (click)="copyNotification('todas as informações')">
+          <mat-icon>content_copy</mat-icon> Copiar Todas as Informações
+        </button>
+      </div>
+    </mat-dialog-content>
+    <mat-dialog-actions align="end">
+      <button mat-button mat-dialog-close>Fechar</button>
+    </mat-dialog-actions>
+  `,
+  styles: `
+    .user-info-field {
+      display: flex;
+      margin-bottom: 16px;
+      align-items: center;
+    }
+    
+    .field-label {
+      font-weight: 500;
+      width: 150px;
+      color: rgba(0, 0, 0, 0.6);
+    }
+    
+    .field-value {
+      flex: 1;
+      font-family: monospace;
+      padding: 8px;
+      background-color: #f5f5f5;
+      border-radius: 4px;
+      word-break: break-all;
+    }
+    
+    .copy-all-section {
+      margin-top: 24px;
+      display: flex;
+      justify-content: center;
+    }
+    
+    .highlight {
+      background-color: rgba(33, 150, 243, 0.05);
+      padding: 16px;
+      border-radius: 8px;
+      border-left: 4px solid #2196F3;
+      margin: 16px 0;
+    }
+    
+    .highlight .field-value {
+      background-color: #e3f2fd;
+      font-weight: bold;
+    }
+    
+    .important-notice {
+      display: flex;
+      align-items: center;
+      background-color: #e3f2fd;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 24px;
+      gap: 12px;
+    }
+    
+    .important-notice mat-icon {
+      font-size: 24px;
+      height: 24px;
+      width: 24px;
+    }
+  `
+})
+export class UserIdDialogComponent {
+  constructor(
+    @Inject(MAT_DIALOG_DATA) public data: any,
+    private snackBar: MatSnackBar
+  ) {}
+  
+  copyNotification(field: string): void {
+    this.snackBar.open(`${field} copiado para a área de transferência`, 'OK', {
+      duration: 2000
+    });
+  }
+  
+  getAllInfoText(): string {
+    return `Google ID: ${this.data.id}
+Email: ${this.data.email}
+Nome: ${this.data.name}
+${this.data.dbId ? 'ID Banco de Dados: ' + this.data.dbId : ''}`;
   }
 } 

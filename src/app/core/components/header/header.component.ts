@@ -11,6 +11,8 @@ import { GoogleAuthService } from '../../services/google-auth.service';
 import { AuthService } from '../../services/auth.service';
 import { Router } from '@angular/router';
 import { ThemeService } from '../../theme/theme.service';
+import { ClipboardModule } from '@angular/cdk/clipboard';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 @Component({
   selector: 'app-header',
@@ -23,7 +25,9 @@ import { ThemeService } from '../../theme/theme.service';
     MatTooltipModule,
     MatDividerModule,
     RouterModule,
-    NgIf
+    NgIf,
+    ClipboardModule,
+    MatSnackBarModule
   ],
   template: `
     <mat-toolbar class="header-toolbar">
@@ -89,6 +93,20 @@ import { ThemeService } from '../../theme/theme.service';
                   </div>
                 </div>
               </div>
+              
+              <mat-divider></mat-divider>
+              <div class="user-id-section">
+                <div class="id-label">ID do usuário:</div>
+                <div class="menu-user-id" title="Clique para copiar o ID" 
+                    [cdkCopyToClipboard]="currentUser?.id || ''"
+                    (click)="copyUserId()"
+                    role="button">
+                  <mat-icon class="id-icon">fingerprint</mat-icon>
+                  <span class="id-value">{{ currentUser?.id }}</span>
+                  <mat-icon class="copy-icon">content_copy</mat-icon>
+                </div>
+              </div>
+              
               <mat-divider></mat-divider>
               <button mat-menu-item (click)="logout()">
                 <mat-icon>exit_to_app</mat-icon>
@@ -307,6 +325,65 @@ import { ThemeService } from '../../theme/theme.service';
       height: 14px;
     }
 
+    .user-id-section {
+      padding: 8px 16px 12px;
+    }
+
+    .id-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+      font-weight: 500;
+    }
+
+    .menu-user-id {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      background-color: rgba(0, 0, 0, 0.04);
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+
+    .menu-user-id:hover {
+      background-color: rgba(0, 0, 0, 0.08);
+    }
+
+    .menu-user-id:active {
+      background-color: rgba(0, 0, 0, 0.12);
+    }
+
+    .id-icon {
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+      color: var(--accent-color, var(--secondary-color));
+    }
+
+    .id-value {
+      font-family: monospace;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 120px;
+    }
+
+    .copy-icon {
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+      margin-left: auto;
+      color: var(--accent-color, var(--secondary-color));
+      opacity: 0.7;
+    }
+
+    .menu-user-id:hover .copy-icon {
+      opacity: 1;
+    }
+
     /* Estilo para links ativos no menu */
     .active-link {
       background-color: rgba(0, 0, 0, 0.04);
@@ -339,6 +416,8 @@ export class HeaderComponent {
   protected authService = inject(AuthService);
   protected router = inject(Router);
   protected themeService = inject(ThemeService);
+  protected clipboard = inject(ClipboardModule);
+  protected snackBar = inject(MatSnackBar);
 
   currentUser = this.googleAuthService.currentUser;
   isAdmin = this.googleAuthService.isAdmin();
@@ -364,5 +443,10 @@ export class HeaderComponent {
       return (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase();
     }
     return nameParts[0][0].toUpperCase();
+  }
+
+  copyUserId(): void {
+    console.log('ID do usuário copiado:', this.currentUser?.id);
+    this.snackBar.open('ID do usuário copiado com sucesso!', 'Fechar', { duration: 3000 });
   }
 } 

@@ -47,29 +47,93 @@ export class MyTeamService {
     }
 
     console.log('[MyTeamService] Buscando time do servidor' + (forceRefresh ? ' (refresh forçado)' : ''));
+    
     // Buscar o time do usuário atual
     const currentUser = this.authService.currentUser;
     if (!currentUser) {
+      console.log('[MyTeamService] Usuário não autenticado');
       return of(null);
     }
 
+    // Primeiramente, tentar obter o time do localStorage
+    const storedTeam = this.authService.getUserTeam();
+    if (storedTeam && !forceRefresh) {
+      console.log('[MyTeamService] Usando time armazenado no localStorage');
+      
+      // Criar o objeto MyTeam a partir do time armazenado
+      const myTeam: MyTeam = {
+        id: storedTeam.id,
+        ligaId: storedTeam.ligaId,
+        userId: storedTeam.userId,
+        name: storedTeam.name,
+        saldo: storedTeam.saldo || 0,
+        formation: storedTeam.formacao || 'F001',
+        pontuacaoTotal: storedTeam.pontuacaoTotal || 0,
+        pontuacaoUltimaRodada: storedTeam.pontuacaoUltimaRodada || 0,
+        colocacao: storedTeam.colocacao || 0,
+        players: [],
+        lineup: []
+      };
+      
+      // Buscar os jogadores do time
+      return this.getTeamPlayers(myTeam).pipe(
+        tap(team => {
+          if (team) {
+            this.storageService.set(this.TEAM_CACHE_KEY, team);
+          }
+        })
+      );
+    }
+
+    // Se não tem time armazenado ou estamos forçando refresh, buscar da planilha
+    console.log('[MyTeamService] Buscando time na planilha, ID do usuário:', currentUser.id);
+    
     // Obter todos os times para encontrar o do usuário atual
     return this.makeAuthorizedRequest<any>('get',
       `https://sheets.googleapis.com/v4/spreadsheets/${this.SHEET_ID}/values/${this.TEAMS_RANGE}`
     ).pipe(
       switchMap(response => {
         if (!response.values || response.values.length <= 1) {
+          console.log('[MyTeamService] Nenhum time encontrado na planilha');
           return of(null);
         }
 
         // Procurar o time do usuário atual
         const teams = response.values.slice(1);
-        const userTeamRow = teams.find((row: any) => row[2] === currentUser.id);
+        
+        // Tentar encontrar o time de várias maneiras
+        let userTeamRow = teams.find((row: any) => row[2] === currentUser.id);
+        
+        // Se não encontrou pelo ID atual, tentar pelo ID original do Google
+        if (!userTeamRow && currentUser.originalId) {
+          console.log('[MyTeamService] Tentando encontrar time pelo ID original:', currentUser.originalId);
+          userTeamRow = teams.find((row: any) => row[2] === currentUser.originalId);
+        }
+        
+        // Se ainda não encontrou, tentar pelo dbId
+        if (!userTeamRow && currentUser.dbId) {
+          console.log('[MyTeamService] Tentando encontrar time pelo dbId:', currentUser.dbId);
+          userTeamRow = teams.find((row: any) => row[2] === currentUser.dbId);
+        }
+        
+        // Se mesmo assim não encontrou, tentar pelo email
+        if (!userTeamRow && currentUser.email) {
+          console.log('[MyTeamService] Tentando encontrar time pelo email:', currentUser.email);
+          userTeamRow = teams.find((row: any) => {
+            // Verificar se o row[2] é um ID de email
+            const usuarioId = row[2];
+            return usuarioId === currentUser.email || 
+                  (typeof usuarioId === 'string' && usuarioId.includes(currentUser.email));
+          });
+        }
         
         if (!userTeamRow) {
+          console.log('[MyTeamService] Nenhum time encontrado para o usuário atual');
           return of(null);
         }
 
+        console.log('[MyTeamService] Time encontrado:', userTeamRow);
+        
         // Criar o objeto base do time
         const myTeam: MyTeam = {
           id: userTeamRow[0],

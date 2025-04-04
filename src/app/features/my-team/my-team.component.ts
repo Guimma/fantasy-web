@@ -358,11 +358,10 @@ import { Rodada, PontuacaoRodada, DetalhePontuacaoAtleta } from './models/pontua
           <div *ngIf="!isLoading && !myTeam" class="no-team">
             <mat-card>
               <mat-card-content>
-                <div class="empty-state">
-                  <mat-icon>sports_soccer</mat-icon>
-                  <h3>Você ainda não tem um time</h3>
-                  <p>Crie seu time para começar a jogar!</p>
-                  <button mat-raised-button color="primary">Criar Time</button>
+                <div class="empty-state error-state">
+                  <mat-icon class="error-icon">error_outline</mat-icon>
+                  <h3>Ops! Houve um erro.</h3>
+                  <p>Entre em contato com o administrador!</p>
                 </div>
               </mat-card-content>
             </mat-card>
@@ -1083,6 +1082,30 @@ import { Rodada, PontuacaoRodada, DetalhePontuacaoAtleta } from './models/pontua
       .players-grid {
         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
       }
+    }
+
+    /* Error state styles */
+    .error-state {
+      padding: 40px 20px;
+    }
+    
+    .error-state .error-icon {
+      font-size: 64px;
+      height: 64px;
+      width: 64px;
+      color: #f44336; /* red color */
+      margin-bottom: 20px;
+    }
+    
+    .error-state h3 {
+      color: #f44336;
+      margin-bottom: 16px;
+      font-size: 24px;
+    }
+    
+    .error-state p {
+      font-size: 16px;
+      color: rgba(0, 0, 0, 0.7);
     }
   `
 })

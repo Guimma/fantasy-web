@@ -14,6 +14,7 @@ export interface GoogleUser {
   accessToken: string;
   role?: string; // admin, manager ou padrão
   dbId?: string;
+  originalId?: string; // ID original do Google (pode ser igual ao id em alguns casos)
 }
 
 export interface SpreadsheetUser {
@@ -219,9 +220,18 @@ export class GoogleAuthService {
   private checkUserInSpreadsheet(user: GoogleUser): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
+        // Verificar se o usuário tem token de acesso
         const accessToken = user.accessToken;
-        
-        // Primeiro, garantir que a planilha tenha cabeçalhos
+        if (!accessToken) {
+          reject('Usuário sem token de acesso');
+          return;
+        }
+
+        // Salvar o ID original do Google
+        user.originalId = user.id;
+        console.log('[GoogleAuthService] ID original do Google:', user.originalId);
+
+        // Garantir que a aba Usuarios exista e tenha cabeçalhos
         this.ensureSheetHasHeader(accessToken)
           .then(() => {
             // URL para buscar os usuários na planilha
@@ -234,22 +244,10 @@ export class GoogleAuthService {
             this.http.get<{values: string[][]}>(url, { headers }).subscribe({
               next: (response: any) => {
                 console.log('Usuários na planilha:', response);
-                
-                if (!response.values || response.values.length === 0) {
-                  // Planilha vazia (sem nem mesmo cabeçalhos)
-                  this.addUserToSpreadsheet(user)
-                    .then(() => {
-                      // Verificar se o usuário tem time
-                      this.checkUserTeam(user)
-                        .then(() => resolve())
-                        .catch(error => reject(error));
-                    })
-                    .catch(error => reject(error));
-                  return;
-                }
-                
-                if (response.values.length === 1) {
-                  // Só tem o cabeçalho, adicionar o usuário
+
+                // Se não tiver valores ou só tiver cabeçalho
+                if (!response.values || response.values.length <= 1) {
+                  // Adicionar usuário à planilha
                   this.addUserToSpreadsheet(user)
                     .then(() => {
                       // Verificar se o usuário tem time
@@ -271,10 +269,12 @@ export class GoogleAuthService {
                   user.role = userFound[3] || 'user';
                   // Salvar o ID do usuário
                   user.dbId = userFound[0];
+                  console.log('[GoogleAuthService] ID do usuário na planilha:', user.dbId);
+                  
                   this.storageService.set(this.USER_KEY, user);
                   this.storageService.set(this.TOKEN_KEY, user.accessToken);
                   this.userSubject.next(user);
-                  console.log('Usuário existente com perfil:', user.role);
+                  console.log('[GoogleAuthService] Usuário existente com perfil:', user.role);
                   
                   // Verificar se o usuário tem time
                   this.checkUserTeam(user)
@@ -293,25 +293,17 @@ export class GoogleAuthService {
                 }
               },
               error: (error) => {
-                console.error('Erro ao verificar usuário na planilha:', error);
-                // Em caso de erro, ainda permitimos o login mas com o perfil padrão
-                this.storageService.set(this.USER_KEY, user);
-                this.storageService.set(this.TOKEN_KEY, user.accessToken);
-                this.userSubject.next(user);
-                resolve();
+                console.error('[GoogleAuthService] Erro ao verificar usuário na planilha:', error);
+                reject(error);
               }
             });
           })
           .catch(error => {
-            console.error('Erro ao garantir cabeçalhos:', error);
-            // Falhar graciosamente permitindo o login de qualquer forma
-            this.storageService.set(this.USER_KEY, user);
-            this.storageService.set(this.TOKEN_KEY, user.accessToken);
-            this.userSubject.next(user);
-            resolve();
+            console.error('[GoogleAuthService] Erro ao garantir cabeçalhos:', error);
+            reject(error);
           });
       } catch (error) {
-        console.error('Erro ao verificar usuário:', error);
+        console.error('[GoogleAuthService] Erro ao verificar usuário:', error);
         reject(error);
       }
     });
@@ -419,11 +411,18 @@ export class GoogleAuthService {
   // Verificar se o usuário já tem um time
   private checkUserTeam(user: GoogleUser): Promise<void> {
     return new Promise((resolve, reject) => {
-      if (!user || !user.accessToken || !user.dbId) {
-        console.error('Usuário não autenticado ou sem ID');
-        reject('Usuário não autenticado ou sem ID');
+      if (!user || !user.accessToken) {
+        console.error('[GoogleAuthService] Usuário não autenticado');
+        reject('Usuário não autenticado');
         return;
       }
+
+      console.log('[GoogleAuthService] Verificando time para o usuário:', {
+        id: user.id,
+        originalId: user.originalId,
+        dbId: user.dbId,
+        email: user.email
+      });
 
       try {
         // Garantir que a aba Times exista e tenha cabeçalhos
@@ -438,11 +437,11 @@ export class GoogleAuthService {
             
             this.http.get<{values: string[][]}>(url, { headers }).subscribe({
               next: (response: any) => {
-                console.log('Times na planilha:', response);
+                console.log('[GoogleAuthService] Times na planilha:', response);
                 
                 if (!response.values || response.values.length <= 1) {
                   // Sem times na planilha ou apenas cabeçalho
-                  console.log('Nenhum time encontrado para o usuário');
+                  console.log('[GoogleAuthService] Nenhum time encontrado na planilha');
                   this.storageService.remove(this.TEAM_KEY);
                   resolve();
                   return;
@@ -450,8 +449,42 @@ export class GoogleAuthService {
                 
                 // Procurar o time do usuário (ignorando a primeira linha que é o cabeçalho)
                 const teams = response.values.slice(1);
-                // Time do usuário é identificado pelo id_usuario na posição 2 (índice 2)
-                const userTeam = teams.find((row: string[]) => row[2] === user.dbId);
+                console.log('[GoogleAuthService] Buscando time para ID do usuário:', user.dbId);
+                
+                // Tentar encontrar o time de várias maneiras
+                let userTeam;
+                
+                // 1. Tentar pelo dbId (ID do usuário na planilha - forma padrão)
+                if (user.dbId) {
+                  userTeam = teams.find((row: string[]) => row[2] === user.dbId);
+                  if (userTeam) {
+                    console.log('[GoogleAuthService] Time encontrado pelo dbId:', user.dbId);
+                  }
+                }
+                
+                // 2. Se não encontrou, tentar pelo ID Google
+                if (!userTeam && user.id) {
+                  userTeam = teams.find((row: string[]) => row[2] === user.id);
+                  if (userTeam) {
+                    console.log('[GoogleAuthService] Time encontrado pelo id do Google:', user.id);
+                  }
+                }
+                
+                // 3. Se não encontrou, tentar pelo originalId
+                if (!userTeam && user.originalId) {
+                  userTeam = teams.find((row: string[]) => row[2] === user.originalId);
+                  if (userTeam) {
+                    console.log('[GoogleAuthService] Time encontrado pelo originalId:', user.originalId);
+                  }
+                }
+                
+                // 4. Se não encontrou, tentar pelo email
+                if (!userTeam && user.email) {
+                  userTeam = teams.find((row: string[]) => row[2] === user.email);
+                  if (userTeam) {
+                    console.log('[GoogleAuthService] Time encontrado pelo email:', user.email);
+                  }
+                }
                 
                 if (userTeam) {
                   // Time encontrado, armazenar localmente
@@ -467,28 +500,28 @@ export class GoogleAuthService {
                     colocacao: Number(userTeam[8] || '0') // colocacao
                   };
                   
-                  console.log('Time encontrado:', team);
+                  console.log('[GoogleAuthService] Time encontrado e armazenado:', team);
                   this.storageService.set(this.TEAM_KEY, team);
                   resolve();
                 } else {
                   // Usuário não tem time
-                  console.log('Usuário não tem time');
+                  console.log('[GoogleAuthService] Nenhum time encontrado para o usuário');
                   this.storageService.remove(this.TEAM_KEY);
                   resolve();
                 }
               },
               error: (error) => {
-                console.error('Erro ao verificar times:', error);
+                console.error('[GoogleAuthService] Erro ao verificar times:', error);
                 reject(error);
               }
             });
           })
           .catch(error => {
-            console.error('Erro ao garantir cabeçalhos de times:', error);
+            console.error('[GoogleAuthService] Erro ao garantir cabeçalhos de times:', error);
             reject(error);
           });
       } catch (error) {
-        console.error('Erro ao verificar time do usuário:', error);
+        console.error('[GoogleAuthService] Erro ao verificar time do usuário:', error);
         reject(error);
       }
     });
